@@ -9,6 +9,7 @@ export interface FarcasterContext {
         username?: string;
         displayName?: string;
         pfpUrl?: string;
+        custody_address?: string;
     };
     isLoaded: boolean;
     isInFrame: boolean;

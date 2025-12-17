@@ -1,21 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { SearchBar } from '@/components/search/SearchBar';
 import { DailyRisers } from '@/components/dashboard/DailyRisers';
 import { NotificationBell } from '@/components/dashboard/NotificationBell';
 import { QuickStats } from '@/components/dashboard/QuickStats';
 import { useAccount } from 'wagmi';
-import { ConnectWallet, Wallet } from '@coinbase/onchainkit/wallet';
-import { Avatar, Name } from '@coinbase/onchainkit/identity';
+import { useFarcaster } from '@/lib/farcaster';
 
 export default function DashboardPage() {
+    const router = useRouter();
     const { address, isConnected } = useAccount();
-    const [showProfilePrompt, setShowProfilePrompt] = useState(true);
+    const { isInFrame, isLoaded, user } = useFarcaster();
+    const [hasProfile, setHasProfile] = useState(false);
+    const [showProfilePrompt, setShowProfilePrompt] = useState(false);
+
+    // Check if user has profile
+    useEffect(() => {
+        if (isLoaded) {
+            const userAddress = isInFrame && user ? user.custody_address : address;
+            if (userAddress) {
+                const savedProfile = localStorage.getItem(`baseproof_profile_${userAddress}`);
+                setHasProfile(!!savedProfile);
+                setShowProfilePrompt(!savedProfile);
+            }
+        }
+    }, [isLoaded, isInFrame, user, address]);
+
+    const userAddress = isInFrame && user ? user.custody_address : address;
+    const displayName = user?.displayName || 'User';
+    const userName = user?.username || (userAddress ? `${userAddress.slice(0, 6)}...` : 'Anonymous');
+    const pfpUrl = user?.pfpUrl;
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-base-gray-900 via-base-gray-900 to-black">
+        <div className="min-h-screen bg-gradient-to-b from-base-gray-900 via-base-gray-900 to-black pb-24 md:pb-8">
             {/* Header */}
             <header className="sticky top-0 z-50 backdrop-blur-xl bg-base-gray-900/80 border-b border-base-gray-800">
                 <div className="max-w-7xl mx-auto px-4 py-3">
@@ -36,9 +56,12 @@ export default function DashboardPage() {
                         <nav className="hidden md:flex items-center gap-6">
                             <Link href="/dashboard" className="text-white font-medium">Dashboard</Link>
                             <Link href="/leaderboard" className="text-base-gray-400 hover:text-white transition-colors">Leaderboard</Link>
-                            {isConnected && (
-                                <Link href={`/profile/${address}`} className="text-base-gray-400 hover:text-white transition-colors">Profile</Link>
-                            )}
+                            <Link
+                                href={hasProfile && userAddress ? `/profile/${userAddress}` : '/profile/setup'}
+                                className="text-base-gray-400 hover:text-white transition-colors"
+                            >
+                                Profile
+                            </Link>
                         </nav>
 
                         {/* Right Side */}
@@ -49,12 +72,22 @@ export default function DashboardPage() {
 
                             <NotificationBell />
 
-                            <Wallet>
-                                <ConnectWallet className="!bg-base-blue hover:!bg-base-blue-light !rounded-xl !px-4 !py-2">
-                                    <Avatar className="h-5 w-5" />
-                                    <Name className="text-sm" />
-                                </ConnectWallet>
-                            </Wallet>
+                            {/* Profile Button */}
+                            <Link
+                                href={hasProfile && userAddress ? `/profile/${userAddress}` : '/profile/setup'}
+                                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-base-gray-800 hover:bg-base-gray-700 transition-colors border border-base-gray-700"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center overflow-hidden">
+                                    {pfpUrl ? (
+                                        <img src={pfpUrl} alt={displayName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-white text-sm font-bold">
+                                            {displayName.slice(0, 1).toUpperCase()}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="text-white text-sm font-medium hidden sm:block">{userName}</span>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -63,12 +96,12 @@ export default function DashboardPage() {
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-4 py-8">
                 {/* Profile Creation Prompt */}
-                {isConnected && showProfilePrompt && (
+                {showProfilePrompt && (
                     <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-base-blue/20 to-purple-600/20 border border-base-blue/30">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
                             <div>
                                 <h3 className="text-lg font-semibold text-white mb-1">🎉 Welcome to BaseProof!</h3>
-                                <p className="text-base-gray-400">Would you like to create your profile and start building your reputation?</p>
+                                <p className="text-base-gray-400">Complete your profile to start building your onchain reputation</p>
                             </div>
                             <div className="flex gap-3">
                                 <button
@@ -78,8 +111,8 @@ export default function DashboardPage() {
                                     Later
                                 </button>
                                 <Link
-                                    href={`/profile/${address}/edit`}
-                                    className="px-6 py-2 bg-base-blue hover:bg-base-blue-light rounded-xl font-medium text-white transition-all"
+                                    href="/profile/setup"
+                                    className="px-6 py-2 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 rounded-xl font-medium text-white transition-all shadow-lg shadow-base-blue/25"
                                 >
                                     Create Profile
                                 </Link>
@@ -98,7 +131,7 @@ export default function DashboardPage() {
                             <h2 className="text-2xl font-bold text-white">🔥 Daily Risers</h2>
                             <p className="text-base-gray-400 text-sm mt-1">Top performers in the last 24 hours</p>
                         </div>
-                        <Link href="/leaderboard" className="text-base-blue hover:text-base-blue-light text-sm font-medium">
+                        <Link href="/leaderboard" className="text-base-blue hover:text-base-blue-light text-sm font-medium transition-colors">
                             View All →
                         </Link>
                     </div>
@@ -120,14 +153,15 @@ export default function DashboardPage() {
                             </svg>
                             <span className="text-xs">Ranks</span>
                         </Link>
-                        {isConnected && (
-                            <Link href={`/profile/${address}`} className="flex flex-col items-center gap-1 text-base-gray-400">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                                <span className="text-xs">Profile</span>
-                            </Link>
-                        )}
+                        <Link
+                            href={hasProfile && userAddress ? `/profile/${userAddress}` : '/profile/setup'}
+                            className="flex flex-col items-center gap-1 text-base-gray-400"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span className="text-xs">Profile</span>
+                        </Link>
                     </div>
                 </nav>
             </main>

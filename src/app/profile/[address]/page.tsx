@@ -1,11 +1,9 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
-import { Wallet, ConnectWallet } from '@coinbase/onchainkit/wallet';
-import { Avatar, Name } from '@coinbase/onchainkit/identity';
 import { SearchBar } from '@/components/search/SearchBar';
 import { TierCard } from '@/components/profile/TierCard';
 import { VouchList } from '@/components/profile/VouchList';
@@ -13,32 +11,46 @@ import { SocialLinks } from '@/components/profile/SocialLinks';
 import { ShareButton } from '@/components/profile/ShareButton';
 import { ProfileStats } from '@/components/profile/ProfileStats';
 import { useProfile } from '@/hooks/useProfile';
+import { useFarcaster } from '@/lib/farcaster';
+
+interface SavedProfile {
+    displayName: string;
+    username: string;
+    bio: string;
+    xUsername: string;
+    xUrl: string;
+    githubUsername: string;
+    githubUrl: string;
+    farcasterUsername: string;
+    farcasterUrl: string;
+    baseappUsername: string;
+    baseappUrl: string;
+    walletAddress: string;
+    fid?: number;
+    pfpUrl?: string;
+}
 
 export default function ProfilePage() {
     const params = useParams();
     const profileAddress = params.address as string;
     const { address: connectedAddress, isConnected } = useAccount();
+    const { user, isInFrame } = useFarcaster();
     const isOwnProfile = isConnected && connectedAddress?.toLowerCase() === profileAddress?.toLowerCase();
 
     const { profile, vouches, isLoading } = useProfile(profileAddress);
     const [vouchFilter, setVouchFilter] = useState<'all' | 'positive' | 'negative'>('all');
     const [pageSize, setPageSize] = useState(10);
+    const [savedProfile, setSavedProfile] = useState<SavedProfile | null>(null);
 
-    // Mock data - will be replaced with real API calls
-    const mockUserData = {
-        fid: 12345,
-        username: 'builder.base',
-        displayName: 'Builder',
-        pfpUrl: undefined as string | undefined,
-        neynarScore: 85,
-        talentBuilderScore: 72,
-        talentCreatorScore: 45,
-        basename: 'builder.base',
-        xUsername: 'builderx',
-        githubUsername: 'builder-dev',
-        farcasterUrl: 'https://warpcast.com/builder',
-        baseappUrl: 'https://base.org/name/builder',
-    };
+    // Load saved profile from localStorage
+    useEffect(() => {
+        if (profileAddress) {
+            const saved = localStorage.getItem(`baseproof_profile_${profileAddress}`);
+            if (saved) {
+                setSavedProfile(JSON.parse(saved));
+            }
+        }
+    }, [profileAddress]);
 
     const filteredVouches = vouches.filter(v => {
         if (vouchFilter === 'positive') return v.positive;
@@ -48,6 +60,12 @@ export default function ProfilePage() {
 
     const positiveCount = vouches.filter(v => v.positive).length;
     const negativeCount = vouches.filter(v => !v.positive).length;
+
+    // Get display data
+    const displayName = savedProfile?.displayName || user?.displayName || `${profileAddress.slice(0, 6)}...${profileAddress.slice(-4)}`;
+    const username = savedProfile?.username || user?.username || profileAddress.slice(0, 8);
+    const pfpUrl = savedProfile?.pfpUrl || user?.pfpUrl;
+    const basename = savedProfile?.baseappUsername;
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-base-gray-900 via-base-gray-900 to-black pb-20">
@@ -70,12 +88,12 @@ export default function ProfilePage() {
                             <div className="hidden sm:block">
                                 <SearchBar />
                             </div>
-                            <Wallet>
-                                <ConnectWallet className="!bg-base-blue hover:!bg-base-blue-light !rounded-xl !px-4 !py-2">
-                                    <Avatar className="h-5 w-5" />
-                                    <Name className="text-sm" />
-                                </ConnectWallet>
-                            </Wallet>
+                            <Link
+                                href="/dashboard"
+                                className="px-4 py-2 text-base-gray-400 hover:text-white transition-colors"
+                            >
+                                Dashboard
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -88,10 +106,10 @@ export default function ProfilePage() {
                     <div>
                         <TierCard
                             profile={profile ?? null}
-                            username={mockUserData.username}
-                            displayName={mockUserData.displayName}
-                            pfpUrl={mockUserData.pfpUrl}
-                            basename={mockUserData.basename}
+                            username={username}
+                            displayName={displayName}
+                            pfpUrl={pfpUrl}
+                            basename={basename}
                             topRoles={['Builder', 'Developer']}
                             isOwn={isOwnProfile}
                         />
@@ -109,20 +127,37 @@ export default function ProfilePage() {
                         {/* User Identity */}
                         <div className="bg-base-gray-800/50 rounded-2xl border border-base-gray-700/50 p-6">
                             <div className="flex items-center gap-4 mb-4">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-                                    {mockUserData.displayName.slice(0, 2).toUpperCase()}
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                                    {pfpUrl ? (
+                                        <img src={pfpUrl} alt={displayName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        displayName.slice(0, 2).toUpperCase()
+                                    )}
                                 </div>
-                                <div>
-                                    <h1 className="text-2xl font-bold text-white">{mockUserData.displayName}</h1>
-                                    <p className="text-base-gray-400">@{mockUserData.username}</p>
+                                <div className="flex-1">
+                                    <h1 className="text-2xl font-bold text-white">{displayName}</h1>
+                                    <p className="text-base-gray-400">@{username}</p>
                                 </div>
+                                {isOwnProfile && (
+                                    <Link
+                                        href="/profile/setup"
+                                        className="px-3 py-1.5 text-sm bg-base-gray-700 hover:bg-base-gray-600 text-white rounded-lg transition-colors"
+                                    >
+                                        Edit
+                                    </Link>
+                                )}
                             </div>
+
+                            {/* Bio */}
+                            {savedProfile?.bio && (
+                                <p className="text-base-gray-300 text-sm mb-4">{savedProfile.bio}</p>
+                            )}
 
                             {/* Stats Row */}
                             <ProfileStats
-                                neynarScore={mockUserData.neynarScore}
-                                builderScore={mockUserData.talentBuilderScore}
-                                creatorScore={mockUserData.talentCreatorScore}
+                                neynarScore={85}
+                                builderScore={72}
+                                creatorScore={45}
                                 positiveVouches={positiveCount}
                                 negativeVouches={negativeCount}
                                 totalScore={profile?.trust_score ?? 100}
@@ -131,24 +166,24 @@ export default function ProfilePage() {
 
                         {/* Social Links */}
                         <SocialLinks
-                            farcasterUsername={mockUserData.username}
-                            baseappUsername={mockUserData.basename}
-                            xUsername={mockUserData.xUsername}
-                            githubUsername={mockUserData.githubUsername}
+                            farcasterUsername={savedProfile?.farcasterUsername}
+                            baseappUsername={savedProfile?.baseappUsername}
+                            xUsername={savedProfile?.xUsername}
+                            githubUsername={savedProfile?.githubUsername}
                         />
 
                         {/* Share Button */}
                         {isOwnProfile && (
                             <ShareButton
                                 profileUrl={`https://baseproof.vercel.app/profile/${profileAddress}`}
-                                username={mockUserData.username}
+                                username={username}
                             />
                         )}
                     </div>
                 </div>
 
                 {/* Vouch Actions (for visitors) */}
-                {!isOwnProfile && isConnected && (
+                {!isOwnProfile && (
                     <div className="flex gap-4 mb-8">
                         <button className="flex-1 py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
