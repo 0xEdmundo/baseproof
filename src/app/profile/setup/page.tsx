@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/farcaster';
 import { FarcasterLoginButton } from '@/components/auth/FarcasterLoginButton';
-import { useProfile as useFarcasterAuthProfile } from '@farcaster/auth-kit';
 import Link from 'next/link';
 
 interface ProfileFormData {
@@ -33,7 +32,6 @@ interface FarcasterUser {
 export default function ProfileSetupPage() {
     const router = useRouter();
     const { isInFrame, isLoaded, user: frameUser } = useFarcaster();
-    const { isAuthenticated, profile: authProfile } = useFarcasterAuthProfile();
 
     const [step, setStep] = useState<'login' | 'form' | 'complete'>('login');
     const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null);
@@ -54,46 +52,16 @@ export default function ProfileSetupPage() {
     // Auto-detect if already in Farcaster Frame
     useEffect(() => {
         if (isLoaded && isInFrame && frameUser) {
-            setFarcasterUser({
+            const user: FarcasterUser = {
                 fid: frameUser.fid,
                 username: frameUser.username || '',
                 displayName: frameUser.displayName || '',
                 pfpUrl: frameUser.pfpUrl || '',
                 custody_address: frameUser.custody_address || '',
-            });
-            setFormData(prev => ({
-                ...prev,
-                displayName: frameUser.displayName || '',
-                username: frameUser.username || '',
-                farcasterUsername: frameUser.username || '',
-                farcasterUrl: `https://warpcast.com/${frameUser.username}`,
-            }));
-            setStep('form');
+            };
+            handleFarcasterLoginSuccess(user);
         }
     }, [isLoaded, isInFrame, frameUser]);
-
-    // Handle Farcaster login from QR code
-    useEffect(() => {
-        if (isAuthenticated && authProfile) {
-            setFarcasterUser({
-                fid: authProfile.fid!,
-                username: authProfile.username || '',
-                displayName: authProfile.displayName || '',
-                pfpUrl: authProfile.pfpUrl || '',
-                custody_address: authProfile.custody || '',
-                bio: authProfile.bio,
-            });
-            setFormData(prev => ({
-                ...prev,
-                displayName: authProfile.displayName || '',
-                username: authProfile.username || '',
-                bio: authProfile.bio || '',
-                farcasterUsername: authProfile.username || '',
-                farcasterUrl: `https://warpcast.com/${authProfile.username}`,
-            }));
-            setStep('form');
-        }
-    }, [isAuthenticated, authProfile]);
 
     const handleInputChange = (field: keyof ProfileFormData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -113,18 +81,19 @@ export default function ProfileSetupPage() {
         }
     };
 
-    const handleFarcasterLoginSuccess = (user: FarcasterUser) => {
+    const handleFarcasterLoginSuccess = useCallback((user: FarcasterUser) => {
+        console.log('Login success, user:', user);
         setFarcasterUser(user);
         setFormData(prev => ({
             ...prev,
-            displayName: user.displayName,
-            username: user.username,
-            bio: user.bio || '',
-            farcasterUsername: user.username,
-            farcasterUrl: `https://warpcast.com/${user.username}`,
+            displayName: user.displayName || prev.displayName,
+            username: user.username || prev.username,
+            bio: user.bio || prev.bio,
+            farcasterUsername: user.username || prev.farcasterUsername,
+            farcasterUrl: user.username ? `https://warpcast.com/${user.username}` : prev.farcasterUrl,
         }));
         setStep('form');
-    };
+    }, []);
 
     const handleSave = async () => {
         if (!farcasterUser) return;
@@ -148,7 +117,8 @@ export default function ProfileSetupPage() {
 
         // Redirect to profile
         setTimeout(() => {
-            router.push(`/profile/${farcasterUser.custody_address || farcasterUser.fid}`);
+            const profileId = farcasterUser.custody_address || `fid_${farcasterUser.fid}`;
+            router.push(`/profile/${profileId}`);
         }, 1500);
     };
 
@@ -182,13 +152,15 @@ export default function ProfileSetupPage() {
                         <p className="text-base-gray-400 mb-8">Sign in with Farcaster to get started</p>
 
                         {/* Farcaster Login Button */}
-                        <FarcasterLoginButton
-                            onSuccess={handleFarcasterLoginSuccess}
-                            onError={(error) => console.error('Login error:', error)}
-                        />
+                        <div className="max-w-sm mx-auto">
+                            <FarcasterLoginButton
+                                onSuccess={handleFarcasterLoginSuccess}
+                                onError={(error) => console.error('Login error:', error)}
+                            />
+                        </div>
 
                         <p className="text-sm text-base-gray-500 mt-6">
-                            Your wallet address will be automatically linked from your Farcaster account
+                            Scan the QR code with Warpcast to sign in
                         </p>
                     </div>
                 )}
