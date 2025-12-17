@@ -122,3 +122,18 @@ body {
   background: var(--base-blue);
   border-radius: 3px;
 }
+
+/* Shine animation for SBT card */
+@keyframes shine {
+  0% {
+    left: -40%;
+  }
+
+  100% {
+    left: 140%;
+  }
+}
+
+.animate-shine {
+  animation: shine 3s ease-in-out infinite;
+}
