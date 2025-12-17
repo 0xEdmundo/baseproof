@@ -1,0 +1,12 @@
+{
+    "manifestVersion": "1",
+    "frame": {
+        "version": "1",
+        "name": "BaseProof",
+        "homeUrl": "https://baseproof.vercel.app",
+        "iconUrl": "https://baseproof.vercel.app/icon.png",
+        "splashImageUrl": "https://baseproof.vercel.app/splash.png",
+        "splashBackgroundColor": "#0052FF",
+        "webhookUrl": "https://baseproof.vercel.app/api/webhook"
+    }
+}
