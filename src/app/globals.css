@@ -6,13 +6,6 @@
   --base-blue: #0052FF;
   --base-blue-light: #1E6FFF;
   --base-blue-dark: #0039B3;
-  --background: #FFFFFF;
-  --foreground: #09090B;
-  --card-bg: #F7F7F8;
-  --border: #ECECEE;
-}
-
-.dark {
   --background: #09090B;
   --foreground: #FFFFFF;
   --card-bg: #18181B;
@@ -37,7 +30,6 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Safe area insets for Farcaster frames */
@@ -52,20 +44,15 @@ body {
 
 /* Glassmorphism card effect */
 .glass-card {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.dark .glass-card {
-  background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, var(--base-blue) 0%, var(--base-blue-light) 100%);
+  background: linear-gradient(135deg, var(--base-blue) 0%, #8B5CF6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -73,14 +60,16 @@ body {
 
 /* Button styles */
 .btn-primary {
-  @apply bg-base-blue hover:bg-base-blue-light text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 ease-in-out;
-  @apply hover:shadow-lg hover:shadow-base-blue/25 active:scale-[0.98];
+  @apply bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500;
+  @apply text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200;
+  @apply shadow-lg shadow-base-blue/25 hover:shadow-xl hover:shadow-base-blue/30;
+  @apply active:scale-[0.98];
 }
 
 .btn-secondary {
-  @apply bg-transparent border-2 border-base-gray-200 dark:border-base-gray-700 text-base-gray-700 dark:text-base-gray-200;
-  @apply font-semibold py-3 px-6 rounded-xl transition-all duration-200 ease-in-out;
-  @apply hover:border-base-blue hover:text-base-blue;
+  @apply bg-base-gray-800 border border-base-gray-700 text-white;
+  @apply font-semibold py-3 px-6 rounded-xl transition-all duration-200;
+  @apply hover:bg-base-gray-700 hover:border-base-gray-600;
 }
 
 /* Step indicator */
@@ -89,7 +78,7 @@ body {
 }
 
 .step-active {
-  @apply bg-base-blue text-white shadow-lg shadow-base-blue/30;
+  @apply bg-gradient-to-br from-base-blue to-purple-600 text-white shadow-lg shadow-base-blue/30;
 }
 
 .step-completed {
@@ -97,33 +86,38 @@ body {
 }
 
 .step-inactive {
-  @apply bg-base-gray-100 dark:bg-base-gray-800 text-base-gray-400;
+  @apply bg-base-gray-800 text-base-gray-500;
 }
 
 /* Progress bar */
 .progress-bar {
-  @apply h-1 bg-base-gray-200 dark:bg-base-gray-700 rounded-full overflow-hidden;
+  @apply h-1 bg-base-gray-800 rounded-full overflow-hidden;
 }
 
 .progress-fill {
-  @apply h-full bg-base-blue rounded-full transition-all duration-500 ease-out;
+  @apply h-full bg-gradient-to-r from-base-blue to-purple-600 rounded-full transition-all duration-500 ease-out;
 }
 
 /* Smooth scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #18181B;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--base-blue);
+  background: linear-gradient(180deg, #0052FF, #8B5CF6);
   border-radius: 3px;
 }
 
-/* Shine animation for SBT card */
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #1E6FFF, #A78BFA);
+}
+
+/* Animations */
 @keyframes shine {
   0% {
     left: -40%;
@@ -136,4 +130,72 @@ body {
 
 .animate-shine {
   animation: shine 3s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(0, 82, 255, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(0, 82, 255, 0.5);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Custom scrollbar for containers */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 2px;
+}
+
+/* Focus styles */
+input:focus,
+button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--base-blue);
+}
+
+/* Selection */
+::selection {
+  background: rgba(0, 82, 255, 0.3);
 }

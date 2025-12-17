@@ -1,7 +1,5 @@
 'use client';
 
-import { ConnectWallet, Wallet, WalletDropdown, WalletDropdownLink, WalletDropdownDisconnect } from '@coinbase/onchainkit/wallet';
-import { Address, Avatar, Name, Identity } from '@coinbase/onchainkit/identity';
 import { PRICING } from '@/lib/config';
 
 export function Step4() {
@@ -36,8 +34,8 @@ export function Step4() {
             </div>
 
             {/* Title */}
-            <h2 className="text-3xl font-bold mb-4">
-                Your Onchain <span className="gradient-text">Passport</span>
+            <h2 className="text-3xl font-bold mb-4 text-white">
+                Your Onchain <span className="bg-gradient-to-r from-base-blue to-purple-500 bg-clip-text text-transparent">Passport</span>
             </h2>
 
             {/* Description */}
@@ -46,27 +44,27 @@ export function Step4() {
                 This dynamic NFT updates with your Trust Score and roles.
             </p>
 
-            {/* Pricing Card */}
-            <div className="w-full p-6 rounded-xl bg-[var(--card-bg)] border border-[var(--border)] mb-6">
+            {/* Pricing Info */}
+            <div className="w-full p-6 rounded-xl bg-base-gray-800/50 border border-base-gray-700/50 mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <p className="font-semibold">Identity Mint</p>
+                        <p className="font-semibold text-white">Identity Mint</p>
                         <p className="text-sm text-base-gray-400">One-time SBT creation</p>
                     </div>
                     <div className="text-right">
                         <p className="text-2xl font-bold text-base-blue">${PRICING.MINT_SBT_USD.toFixed(2)}</p>
-                        <p className="text-xs text-base-gray-400">+ gas</p>
+                        <p className="text-xs text-base-gray-500">+ gas</p>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+                <div className="flex items-center justify-between pt-4 border-t border-base-gray-700/50">
                     <div>
-                        <p className="font-semibold">Profile Refresh</p>
+                        <p className="font-semibold text-white">Profile Refresh</p>
                         <p className="text-sm text-base-gray-400">Update SBT metadata</p>
                     </div>
                     <div className="text-right">
                         <p className="text-2xl font-bold text-base-gray-500">${PRICING.REFRESH_PROFILE_USD.toFixed(2)}</p>
-                        <p className="text-xs text-base-gray-400">+ gas</p>
+                        <p className="text-xs text-base-gray-500">+ gas</p>
                     </div>
                 </div>
             </div>
@@ -75,42 +73,26 @@ export function Step4() {
             <div className="w-full grid grid-cols-2 gap-3 mb-6">
                 <div className="flex items-center gap-2 text-left">
                     <span className="text-green-500">✓</span>
-                    <span className="text-sm">Non-transferable</span>
+                    <span className="text-sm text-base-gray-300">Non-transferable</span>
                 </div>
                 <div className="flex items-center gap-2 text-left">
                     <span className="text-green-500">✓</span>
-                    <span className="text-sm">Dynamic metadata</span>
+                    <span className="text-sm text-base-gray-300">Dynamic metadata</span>
                 </div>
                 <div className="flex items-center gap-2 text-left">
                     <span className="text-green-500">✓</span>
-                    <span className="text-sm">Onchain verified</span>
+                    <span className="text-sm text-base-gray-300">Onchain verified</span>
                 </div>
                 <div className="flex items-center gap-2 text-left">
                     <span className="text-green-500">✓</span>
-                    <span className="text-sm">Base native</span>
+                    <span className="text-sm text-base-gray-300">Base native</span>
                 </div>
             </div>
 
-            {/* Wallet Connect */}
-            <div className="w-full">
-                <Wallet>
-                    <ConnectWallet className="w-full">
-                        <Avatar className="h-6 w-6" />
-                        <Name />
-                    </ConnectWallet>
-                    <WalletDropdown>
-                        <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-                            <Avatar />
-                            <Name />
-                            <Address />
-                        </Identity>
-                        <WalletDropdownLink icon="wallet" href="https://keys.coinbase.com">
-                            Wallet
-                        </WalletDropdownLink>
-                        <WalletDropdownDisconnect />
-                    </WalletDropdown>
-                </Wallet>
-            </div>
+            {/* Note - No mint button here, just info */}
+            <p className="text-sm text-base-gray-500 italic">
+                You can mint your identity card from your profile after entering the dashboard.
+            </p>
         </div>
     );
 }
