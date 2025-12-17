@@ -35,10 +35,7 @@ export const viewport: Viewport = {
     initialScale: 1,
     maximumScale: 1,
     viewportFit: 'cover',
-    themeColor: [
-        { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
-        { media: '(prefers-color-scheme: dark)', color: '#09090B' },
-    ],
+    themeColor: '#09090B',
 };
 
 export default function RootLayout({
@@ -47,12 +44,10 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en" suppressHydrationWarning>
-            <body className={`${inter.variable} font-sans antialiased`}>
+        <html lang="en" className="dark" suppressHydrationWarning>
+            <body className={`${inter.variable} font-sans antialiased bg-base-gray-900 text-white`}>
                 <AppProviders>
-                    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-                        {children}
-                    </main>
+                    {children}
                 </AppProviders>
             </body>
         </html>

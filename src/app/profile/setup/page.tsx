@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/farcaster';
-import { useAccount } from 'wagmi';
-import { Wallet, ConnectWallet } from '@coinbase/onchainkit/wallet';
-import { Avatar, Name } from '@coinbase/onchainkit/identity';
+import { FarcasterLoginButton } from '@/components/auth/FarcasterLoginButton';
+import { useProfile as useFarcasterAuthProfile } from '@farcaster/auth-kit';
 import Link from 'next/link';
 
 interface ProfileFormData {
@@ -22,12 +21,22 @@ interface ProfileFormData {
     baseappUrl: string;
 }
 
+interface FarcasterUser {
+    fid: number;
+    username: string;
+    displayName: string;
+    pfpUrl: string;
+    custody_address: string;
+    bio?: string;
+}
+
 export default function ProfileSetupPage() {
     const router = useRouter();
-    const { isInFrame, isLoaded, user } = useFarcaster();
-    const { address, isConnected } = useAccount();
+    const { isInFrame, isLoaded, user: frameUser } = useFarcaster();
+    const { isAuthenticated, profile: authProfile } = useFarcasterAuthProfile();
 
-    const [step, setStep] = useState<'detect' | 'form' | 'complete'>('detect');
+    const [step, setStep] = useState<'login' | 'form' | 'complete'>('login');
+    const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null);
     const [formData, setFormData] = useState<ProfileFormData>({
         displayName: '',
         username: '',
@@ -42,25 +51,49 @@ export default function ProfileSetupPage() {
         baseappUrl: '',
     });
 
-    // Auto-detect Farcaster/BaseApp user
+    // Auto-detect if already in Farcaster Frame
     useEffect(() => {
-        if (isLoaded) {
-            if (isInFrame && user) {
-                // Farcaster user detected - auto-fill
-                setFormData(prev => ({
-                    ...prev,
-                    displayName: user.displayName || '',
-                    username: user.username || '',
-                    farcasterUsername: user.username || '',
-                    farcasterUrl: `https://warpcast.com/${user.username}`,
-                }));
-                setStep('form');
-            } else if (isConnected && address) {
-                // Wallet connected - proceed to form
-                setStep('form');
-            }
+        if (isLoaded && isInFrame && frameUser) {
+            setFarcasterUser({
+                fid: frameUser.fid,
+                username: frameUser.username || '',
+                displayName: frameUser.displayName || '',
+                pfpUrl: frameUser.pfpUrl || '',
+                custody_address: frameUser.custody_address || '',
+            });
+            setFormData(prev => ({
+                ...prev,
+                displayName: frameUser.displayName || '',
+                username: frameUser.username || '',
+                farcasterUsername: frameUser.username || '',
+                farcasterUrl: `https://warpcast.com/${frameUser.username}`,
+            }));
+            setStep('form');
         }
-    }, [isLoaded, isInFrame, user, isConnected, address]);
+    }, [isLoaded, isInFrame, frameUser]);
+
+    // Handle Farcaster login from QR code
+    useEffect(() => {
+        if (isAuthenticated && authProfile) {
+            setFarcasterUser({
+                fid: authProfile.fid!,
+                username: authProfile.username || '',
+                displayName: authProfile.displayName || '',
+                pfpUrl: authProfile.pfpUrl || '',
+                custody_address: authProfile.custody || '',
+                bio: authProfile.bio,
+            });
+            setFormData(prev => ({
+                ...prev,
+                displayName: authProfile.displayName || '',
+                username: authProfile.username || '',
+                bio: authProfile.bio || '',
+                farcasterUsername: authProfile.username || '',
+                farcasterUrl: `https://warpcast.com/${authProfile.username}`,
+            }));
+            setStep('form');
+        }
+    }, [isAuthenticated, authProfile]);
 
     const handleInputChange = (field: keyof ProfileFormData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -80,22 +113,42 @@ export default function ProfileSetupPage() {
         }
     };
 
+    const handleFarcasterLoginSuccess = (user: FarcasterUser) => {
+        setFarcasterUser(user);
+        setFormData(prev => ({
+            ...prev,
+            displayName: user.displayName,
+            username: user.username,
+            bio: user.bio || '',
+            farcasterUsername: user.username,
+            farcasterUrl: `https://warpcast.com/${user.username}`,
+        }));
+        setStep('form');
+    };
+
     const handleSave = async () => {
-        // Save to local storage for now (will be replaced with Supabase)
+        if (!farcasterUser) return;
+
+        // Save to local storage (will be replaced with Supabase)
         const profileData = {
             ...formData,
-            walletAddress: address,
-            fid: user?.fid,
-            pfpUrl: user?.pfpUrl,
+            walletAddress: farcasterUser.custody_address,
+            fid: farcasterUser.fid,
+            pfpUrl: farcasterUser.pfpUrl,
             createdAt: new Date().toISOString(),
         };
 
-        localStorage.setItem(`baseproof_profile_${address}`, JSON.stringify(profileData));
+        // Save by both FID and custody address for lookup
+        localStorage.setItem(`baseproof_profile_fid_${farcasterUser.fid}`, JSON.stringify(profileData));
+        if (farcasterUser.custody_address) {
+            localStorage.setItem(`baseproof_profile_${farcasterUser.custody_address}`, JSON.stringify(profileData));
+        }
+
         setStep('complete');
 
-        // Redirect to profile after short delay
+        // Redirect to profile
         setTimeout(() => {
-            router.push(`/profile/${address}`);
+            router.push(`/profile/${farcasterUser.custody_address || farcasterUser.fid}`);
         }, 1500);
     };
 
@@ -116,54 +169,32 @@ export default function ProfileSetupPage() {
             </header>
 
             <main className="max-w-2xl mx-auto px-6 py-12">
-                {/* Step: Detect */}
-                {step === 'detect' && (
+                {/* Step: Login */}
+                {step === 'login' && (
                     <div className="text-center animate-fade-in">
-                        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center">
-                            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
+                            <svg viewBox="0 0 24 24" className="w-10 h-10 text-white" fill="currentColor">
+                                <path d="M18.24 4H5.76A1.76 1.76 0 0 0 4 5.76v12.48A1.76 1.76 0 0 0 5.76 20h12.48A1.76 1.76 0 0 0 20 18.24V5.76A1.76 1.76 0 0 0 18.24 4Zm-2.16 12.16a.56.56 0 0 1-.56.56H8.48a.56.56 0 0 1-.56-.56v-4.8a.56.56 0 0 1 .56-.56h7.04a.56.56 0 0 1 .56.56Zm0-6.24a.56.56 0 0 1-.56.56H8.48a.56.56 0 0 1-.56-.56V7.28a.56.56 0 0 1 .56-.56h7.04a.56.56 0 0 1 .56.56Z" />
                             </svg>
                         </div>
 
                         <h1 className="text-3xl font-bold text-white mb-4">Create Your Profile</h1>
-                        <p className="text-base-gray-400 mb-8">Connect to create your onchain reputation</p>
+                        <p className="text-base-gray-400 mb-8">Sign in with Farcaster to get started</p>
 
-                        {/* Farcaster/BaseApp Auto-detect */}
-                        {isInFrame ? (
-                            <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 mb-6">
-                                <div className="flex items-center justify-center gap-2 text-green-400">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    <span>Farcaster detected - Loading your info...</span>
-                                </div>
-                            </div>
-                        ) : (
-                            <>
-                                <p className="text-sm text-base-gray-500 mb-6">
-                                    For the best experience, open this app in Farcaster or BaseApp
-                                </p>
+                        {/* Farcaster Login Button */}
+                        <FarcasterLoginButton
+                            onSuccess={handleFarcasterLoginSuccess}
+                            onError={(error) => console.error('Login error:', error)}
+                        />
 
-                                {/* Connect Wallet for Web users */}
-                                <div className="space-y-4">
-                                    <Wallet>
-                                        <ConnectWallet className="!w-full !py-4 !bg-gradient-to-r !from-base-blue !to-purple-600 hover:!from-base-blue-light hover:!to-purple-500 !rounded-xl !font-semibold">
-                                            <Avatar className="h-6 w-6" />
-                                            <Name className="text-base" />
-                                        </ConnectWallet>
-                                    </Wallet>
-
-                                    <p className="text-xs text-base-gray-500">
-                                        Connect with Coinbase Wallet or Smart Wallet
-                                    </p>
-                                </div>
-                            </>
-                        )}
+                        <p className="text-sm text-base-gray-500 mt-6">
+                            Your wallet address will be automatically linked from your Farcaster account
+                        </p>
                     </div>
                 )}
 
                 {/* Step: Form */}
-                {step === 'form' && (
+                {step === 'form' && farcasterUser && (
                     <div className="animate-fade-in">
                         <div className="text-center mb-8">
                             <h1 className="text-2xl font-bold text-white mb-2">Complete Your Profile</h1>
@@ -171,23 +202,22 @@ export default function ProfileSetupPage() {
                         </div>
 
                         {/* Profile Preview */}
-                        {(user?.pfpUrl || formData.displayName) && (
-                            <div className="flex items-center gap-4 p-4 rounded-xl bg-base-gray-800/50 border border-base-gray-700/50 mb-8">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center overflow-hidden">
-                                    {user?.pfpUrl ? (
-                                        <img src={user.pfpUrl} alt={formData.displayName} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <span className="text-white text-2xl font-bold">
-                                            {formData.displayName.slice(0, 2).toUpperCase() || '?'}
-                                        </span>
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-white">{formData.displayName || 'Your Name'}</p>
-                                    <p className="text-sm text-base-gray-400">@{formData.username || 'username'}</p>
-                                </div>
+                        <div className="flex items-center gap-4 p-4 rounded-xl bg-base-gray-800/50 border border-base-gray-700/50 mb-8">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center overflow-hidden">
+                                {farcasterUser.pfpUrl ? (
+                                    <img src={farcasterUser.pfpUrl} alt={formData.displayName} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-white text-2xl font-bold">
+                                        {formData.displayName.slice(0, 2).toUpperCase() || '?'}
+                                    </span>
+                                )}
                             </div>
-                        )}
+                            <div>
+                                <p className="font-semibold text-white">{formData.displayName || 'Your Name'}</p>
+                                <p className="text-sm text-base-gray-400">@{formData.username || 'username'}</p>
+                                <p className="text-xs text-green-400 mt-1">✓ Connected via Farcaster</p>
+                            </div>
+                        </div>
 
                         {/* Form */}
                         <div className="space-y-6">
@@ -233,8 +263,8 @@ export default function ProfileSetupPage() {
                             <div className="space-y-4">
                                 <h3 className="text-sm font-medium text-base-gray-400">Social Links</h3>
 
-                                {/* Farcaster */}
-                                <div className="p-4 rounded-xl bg-base-gray-800/50 border border-base-gray-700/50">
+                                {/* Farcaster (Auto-filled) */}
+                                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
                                     <div className="flex items-center gap-3 mb-3">
                                         <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
                                             <svg viewBox="0 0 24 24" className="w-4 h-4 text-purple-400" fill="currentColor">
@@ -242,17 +272,13 @@ export default function ProfileSetupPage() {
                                             </svg>
                                         </div>
                                         <span className="font-medium text-white">Farcaster</span>
-                                        {isInFrame && user && (
-                                            <span className="ml-auto text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded">Auto-detected</span>
-                                        )}
+                                        <span className="ml-auto text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded">✓ Connected</span>
                                     </div>
                                     <input
                                         type="text"
                                         value={formData.farcasterUsername}
-                                        onChange={(e) => handleInputChange('farcasterUsername', e.target.value)}
-                                        placeholder="@username"
-                                        disabled={isInFrame && !!user}
-                                        className="w-full px-3 py-2 bg-base-gray-700 border border-base-gray-600 rounded-lg text-white placeholder-base-gray-500 text-sm focus:outline-none focus:border-purple-500 disabled:opacity-60"
+                                        disabled
+                                        className="w-full px-3 py-2 bg-base-gray-700 border border-base-gray-600 rounded-lg text-white text-sm opacity-60"
                                     />
                                 </div>
 
