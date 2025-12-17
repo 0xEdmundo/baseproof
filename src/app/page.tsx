@@ -2,109 +2,127 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Stepper } from '@/components/onboarding/Stepper';
-import { Step1 } from '@/components/onboarding/Step1';
-import { Step2 } from '@/components/onboarding/Step2';
-import { Step3 } from '@/components/onboarding/Step3';
-import { Step4 } from '@/components/onboarding/Step4';
 import Link from 'next/link';
 
-const STEPS = [
-    { id: 1, title: 'Influence', component: Step1 },
-    { id: 2, title: 'Tags', component: Step2 },
-    { id: 3, title: 'Trust Wall', component: Step3 },
-    { id: 4, title: 'Passport', component: Step4 },
+const FEATURES = [
+    {
+        icon: '⚖️',
+        title: 'Weighted Influence',
+        desc: 'Higher trust = stronger votes',
+    },
+    {
+        icon: '🏷️',
+        title: 'Role Tags',
+        desc: 'Builder, Developer, Creator...',
+    },
+    {
+        icon: '📜',
+        title: 'Wall of Trust',
+        desc: 'Transparent vouch history',
+    },
+    {
+        icon: '🎴',
+        title: 'NFT Identity',
+        desc: 'Mint your soulbound card',
+    },
+    {
+        icon: '📊',
+        title: 'Vouch Limits',
+        desc: '5/day, 35/week per user',
+    },
+    {
+        icon: '🏆',
+        title: 'Leaderboard',
+        desc: 'Compete for top ranks',
+    },
 ];
 
 export default function Home() {
-    const [currentStep, setCurrentStep] = useState(0);
     const router = useRouter();
 
-    const handleNext = () => {
-        if (currentStep < STEPS.length - 1) {
-            setCurrentStep(currentStep + 1);
-        }
-    };
-
-    const handleBack = () => {
-        if (currentStep > 0) {
-            setCurrentStep(currentStep - 1);
-        }
-    };
-
-    const handleComplete = () => {
-        // Navigate to dashboard after onboarding
-        router.push('/dashboard');
-    };
-
-    const CurrentStepComponent = STEPS[currentStep].component;
-
     return (
-        <div className="min-h-screen flex flex-col bg-gradient-to-b from-base-gray-900 via-base-gray-900 to-black">
+        <div className="min-h-screen bg-base-gray-900 flex flex-col">
             {/* Header */}
-            <header className="w-full px-6 py-4 flex items-center justify-between border-b border-base-gray-800">
-                <Link href="/" className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center shadow-lg shadow-base-blue/25">
-                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
+            <header className="px-4 py-3 border-b border-base-gray-800">
+                <div className="max-w-lg mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <span className="text-base font-bold text-white">BaseProof</span>
                     </div>
-                    <span className="text-xl font-bold bg-gradient-to-r from-white to-base-gray-400 bg-clip-text text-transparent">
-                        BaseProof
-                    </span>
-                </Link>
-
-                <Link
-                    href="/dashboard"
-                    className="text-base-gray-400 hover:text-white text-sm transition-colors"
-                >
-                    Skip intro →
-                </Link>
+                    <Link href="/dashboard" className="text-base-gray-400 text-xs hover:text-white transition-colors">
+                        Skip →
+                    </Link>
+                </div>
             </header>
 
-            {/* Stepper Navigation */}
-            <Stepper
-                steps={STEPS}
-                currentStep={currentStep}
-                onStepClick={(index) => setCurrentStep(index)}
-            />
-
-            {/* Step Content */}
-            <div className="flex-1 flex flex-col px-6 py-8 overflow-y-auto">
-                <CurrentStepComponent />
-            </div>
-
-            {/* Navigation Buttons */}
-            <footer className="w-full px-6 py-6 border-t border-base-gray-800 bg-base-gray-900/80 backdrop-blur-xl">
-                <div className="flex gap-4 max-w-md mx-auto">
-                    {currentStep > 0 && (
-                        <button
-                            onClick={handleBack}
-                            className="flex-1 py-3 px-6 bg-base-gray-800 hover:bg-base-gray-700 text-white font-semibold rounded-xl transition-all border border-base-gray-700"
-                        >
-                            Back
-                        </button>
-                    )}
-
-                    {currentStep < STEPS.length - 1 ? (
-                        <button
-                            onClick={handleNext}
-                            className="flex-1 py-3 px-6 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-base-blue/25"
-                        >
-                            Continue
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleComplete}
-                            className="flex-1 py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-green-500/25 flex items-center justify-center gap-2"
-                        >
-                            Enter Dashboard
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                        </button>
-                    )}
+            {/* Main Content */}
+            <main className="flex-1 flex flex-col justify-center px-4 py-6 max-w-lg mx-auto w-full">
+                {/* Hero */}
+                <div className="text-center mb-6">
+                    <h1 className="text-2xl font-bold text-white mb-2">
+                        Onchain <span className="text-transparent bg-clip-text bg-gradient-to-r from-base-blue to-purple-500">Reputation</span>
+                    </h1>
+                    <p className="text-base-gray-400 text-sm">Build trust through weighted vouching on Base</p>
                 </div>
+
+                {/* Features Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                    {FEATURES.map((f, i) => (
+                        <div key={i} className="p-3 rounded-xl bg-base-gray-800/50 border border-base-gray-700/50">
+                            <span className="text-xl mb-1 block">{f.icon}</span>
+                            <p className="text-white font-medium text-sm">{f.title}</p>
+                            <p className="text-base-gray-500 text-xs mt-0.5">{f.desc}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* How it Works */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-base-blue/10 to-purple-600/10 border border-base-blue/20 mb-6">
+                    <h3 className="text-white font-semibold text-sm mb-2">How it Works</h3>
+                    <ol className="space-y-1.5 text-xs text-base-gray-400">
+                        <li className="flex gap-2">
+                            <span className="text-base-blue font-bold">1.</span>
+                            Sign in with Farcaster
+                        </li>
+                        <li className="flex gap-2">
+                            <span className="text-base-blue font-bold">2.</span>
+                            Complete your profile & add social links
+                        </li>
+                        <li className="flex gap-2">
+                            <span className="text-base-blue font-bold">3.</span>
+                            Give & receive vouches (5/day, 35/week)
+                        </li>
+                        <li className="flex gap-2">
+                            <span className="text-base-blue font-bold">4.</span>
+                            Climb the leaderboard & mint your NFT card
+                        </li>
+                    </ol>
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="space-y-3">
+                    <button
+                        onClick={() => router.push('/profile/setup')}
+                        className="w-full py-3 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 text-white font-semibold rounded-xl transition-all text-sm"
+                    >
+                        Get Started
+                    </button>
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="w-full py-3 bg-base-gray-800 hover:bg-base-gray-700 border border-base-gray-700 text-white font-medium rounded-xl transition-all text-sm"
+                    >
+                        Explore Dashboard
+                    </button>
+                </div>
+            </main>
+
+            {/* Footer */}
+            <footer className="px-4 py-3 border-t border-base-gray-800 text-center">
+                <p className="text-base-gray-500 text-xs">Built on Base • Powered by EAS</p>
             </footer>
         </div>
     );

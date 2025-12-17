@@ -8,6 +8,7 @@ import { coinbaseWallet } from 'wagmi/connectors';
 import { ReactNode, useState } from 'react';
 import { APP_CONFIG, RPC_URLS } from '@/lib/config';
 import { FarcasterAuthProvider } from './FarcasterAuthProvider';
+import { AuthProvider } from './AuthProvider';
 
 // Wagmi configuration
 const wagmiConfig = createConfig({
@@ -53,7 +54,9 @@ export function AppProviders({ children }: AppProvidersProps) {
                     }}
                 >
                     <FarcasterAuthProvider>
-                        {children}
+                        <AuthProvider>
+                            {children}
+                        </AuthProvider>
                     </FarcasterAuthProvider>
                 </OnchainKitProvider>
             </QueryClientProvider>

@@ -3,250 +3,213 @@
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAccount } from 'wagmi';
+import { useAuth } from '@/providers/AuthProvider';
 import { SearchBar } from '@/components/search/SearchBar';
-import { TierCard } from '@/components/profile/TierCard';
+import { TierCard, getTierByScore } from '@/components/profile/TierCard';
 import { VouchList } from '@/components/profile/VouchList';
-import { SocialLinks } from '@/components/profile/SocialLinks';
-import { ShareButton } from '@/components/profile/ShareButton';
-import { ProfileStats } from '@/components/profile/ProfileStats';
 import { useProfile } from '@/hooks/useProfile';
-import { useFarcaster } from '@/lib/farcaster';
-
-interface SavedProfile {
-    displayName: string;
-    username: string;
-    bio: string;
-    xUsername: string;
-    xUrl: string;
-    githubUsername: string;
-    githubUrl: string;
-    farcasterUsername: string;
-    farcasterUrl: string;
-    baseappUsername: string;
-    baseappUrl: string;
-    walletAddress: string;
-    fid?: number;
-    pfpUrl?: string;
-}
 
 export default function ProfilePage() {
     const params = useParams();
     const profileAddress = params.address as string;
-    const { address: connectedAddress, isConnected } = useAccount();
-    const { user, isInFrame } = useFarcaster();
-    const isOwnProfile = isConnected && connectedAddress?.toLowerCase() === profileAddress?.toLowerCase();
+    const { user, isAuthenticated, canVouch, useVouch } = useAuth();
+    const isOwnProfile = isAuthenticated && (
+        user?.custody_address?.toLowerCase() === profileAddress?.toLowerCase() ||
+        user?.fid?.toString() === profileAddress
+    );
 
     const { profile, vouches, isLoading } = useProfile(profileAddress);
-    const [vouchFilter, setVouchFilter] = useState<'all' | 'positive' | 'negative'>('all');
-    const [pageSize, setPageSize] = useState(10);
-    const [savedProfile, setSavedProfile] = useState<SavedProfile | null>(null);
+    const [savedProfile, setSavedProfile] = useState<any>(null);
 
-    // Load saved profile from localStorage
+    // Load saved profile
     useEffect(() => {
         if (profileAddress) {
-            const saved = localStorage.getItem(`baseproof_profile_${profileAddress}`);
-            if (saved) {
-                setSavedProfile(JSON.parse(saved));
-            }
+            const saved = localStorage.getItem(`baseproof_profile_${profileAddress}`) ||
+                localStorage.getItem(`baseproof_profile_fid_${profileAddress}`);
+            if (saved) setSavedProfile(JSON.parse(saved));
         }
     }, [profileAddress]);
 
-    const filteredVouches = vouches.filter(v => {
-        if (vouchFilter === 'positive') return v.positive;
-        if (vouchFilter === 'negative') return !v.positive;
-        return true;
-    });
+    const displayData = {
+        displayName: savedProfile?.displayName || user?.displayName || profileAddress?.slice(0, 8),
+        username: savedProfile?.username || user?.username || profileAddress?.slice(0, 8),
+        pfpUrl: savedProfile?.pfpUrl || user?.pfpUrl,
+        bio: savedProfile?.bio || '',
+        trustScore: profile?.trust_score || user?.trustScore || 100,
+    };
 
-    const positiveCount = vouches.filter(v => v.positive).length;
-    const negativeCount = vouches.filter(v => !v.positive).length;
+    const tier = getTierByScore(displayData.trustScore);
+    const vouchInfo = canVouch();
 
-    // Get display data
-    const displayName = savedProfile?.displayName || user?.displayName || `${profileAddress.slice(0, 6)}...${profileAddress.slice(-4)}`;
-    const username = savedProfile?.username || user?.username || profileAddress.slice(0, 8);
-    const pfpUrl = savedProfile?.pfpUrl || user?.pfpUrl;
-    const basename = savedProfile?.baseappUsername;
+    const handleVouch = (positive: boolean) => {
+        if (!vouchInfo.allowed) {
+            alert(`Vouch limit reached! Daily: ${vouchInfo.dailyRemaining}/5, Weekly: ${vouchInfo.weeklyRemaining}/35`);
+            return;
+        }
+        useVouch();
+        // TODO: Call contract/API
+    };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-base-gray-900 via-base-gray-900 to-black pb-20">
+        <div className="min-h-screen bg-base-gray-900 pb-20">
             {/* Header */}
-            <header className="sticky top-0 z-50 backdrop-blur-xl bg-base-gray-900/80 border-b border-base-gray-800">
-                <div className="max-w-7xl mx-auto px-4 py-3">
+            <header className="sticky top-0 z-50 backdrop-blur-xl bg-base-gray-900/90 border-b border-base-gray-800">
+                <div className="max-w-5xl mx-auto px-4 py-3">
                     <div className="flex items-center justify-between">
-                        <Link href="/dashboard" className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center shadow-lg shadow-base-blue/25">
-                                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <Link href="/dashboard" className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center">
+                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                 </svg>
                             </div>
-                            <span className="text-xl font-bold bg-gradient-to-r from-white to-base-gray-400 bg-clip-text text-transparent">
-                                BaseProof
-                            </span>
+                            <span className="text-base font-bold text-white">BaseProof</span>
                         </Link>
-
-                        <div className="flex items-center gap-4">
-                            <div className="hidden sm:block">
-                                <SearchBar />
-                            </div>
-                            <Link
-                                href="/dashboard"
-                                className="px-4 py-2 text-base-gray-400 hover:text-white transition-colors"
-                            >
-                                Dashboard
-                            </Link>
+                        <div className="flex items-center gap-3">
+                            <SearchBar />
                         </div>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-4xl mx-auto px-4 py-8">
-                {/* Profile Header with Card and Info */}
-                <div className="grid md:grid-cols-2 gap-8 mb-8">
-                    {/* Tier Card */}
-                    <div>
+            <main className="max-w-5xl mx-auto px-4 py-6">
+                {/* Profile Layout: 2 columns */}
+                <div className="grid lg:grid-cols-5 gap-6">
+                    {/* LEFT: Card + Social Links + Stats */}
+                    <div className="lg:col-span-3 space-y-4">
+                        {/* Tier Card */}
                         <TierCard
                             profile={profile ?? null}
-                            username={username}
-                            displayName={displayName}
-                            pfpUrl={pfpUrl}
-                            basename={basename}
+                            username={displayData.username}
+                            displayName={displayData.displayName}
+                            pfpUrl={displayData.pfpUrl}
                             topRoles={['Builder', 'Developer']}
                             isOwn={isOwnProfile}
                         />
 
-                        {/* Mint Button */}
-                        {isOwnProfile && (
-                            <button className="w-full mt-4 py-3 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-base-blue/25">
-                                Mint NFT Card
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Profile Info */}
-                    <div className="space-y-6">
-                        {/* User Identity */}
-                        <div className="bg-base-gray-800/50 rounded-2xl border border-base-gray-700/50 p-6">
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
-                                    {pfpUrl ? (
-                                        <img src={pfpUrl} alt={displayName} className="w-full h-full object-cover" />
-                                    ) : (
-                                        displayName.slice(0, 2).toUpperCase()
-                                    )}
-                                </div>
-                                <div className="flex-1">
-                                    <h1 className="text-2xl font-bold text-white">{displayName}</h1>
-                                    <p className="text-base-gray-400">@{username}</p>
-                                </div>
-                                {isOwnProfile && (
-                                    <Link
-                                        href="/profile/setup"
-                                        className="px-3 py-1.5 text-sm bg-base-gray-700 hover:bg-base-gray-600 text-white rounded-lg transition-colors"
-                                    >
-                                        Edit
-                                    </Link>
-                                )}
-                            </div>
-
-                            {/* Bio */}
-                            {savedProfile?.bio && (
-                                <p className="text-base-gray-300 text-sm mb-4">{savedProfile.bio}</p>
+                        {/* Social Links */}
+                        <div className="flex flex-wrap gap-2">
+                            {savedProfile?.farcasterUsername && (
+                                <a href={savedProfile.farcasterUrl} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-purple-400 text-sm hover:bg-purple-500/20 transition-colors">
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M18.24 4H5.76A1.76 1.76 0 0 0 4 5.76v12.48A1.76 1.76 0 0 0 5.76 20h12.48A1.76 1.76 0 0 0 20 18.24V5.76A1.76 1.76 0 0 0 18.24 4Z" /></svg>
+                                    @{savedProfile.farcasterUsername}
+                                </a>
                             )}
-
-                            {/* Stats Row */}
-                            <ProfileStats
-                                neynarScore={85}
-                                builderScore={72}
-                                creatorScore={45}
-                                positiveVouches={positiveCount}
-                                negativeVouches={negativeCount}
-                                totalScore={profile?.trust_score ?? 100}
-                            />
+                            {savedProfile?.baseappUsername && (
+                                <a href={savedProfile.baseappUrl} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/20 transition-colors">
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
+                                    {savedProfile.baseappUsername}
+                                </a>
+                            )}
+                            {savedProfile?.xUsername && (
+                                <a href={savedProfile.xUrl} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/10 transition-colors">
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                                    @{savedProfile.xUsername}
+                                </a>
+                            )}
+                            {savedProfile?.githubUsername && (
+                                <a href={savedProfile.githubUrl} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-500/10 border border-gray-500/30 rounded-lg text-gray-300 text-sm hover:bg-gray-500/20 transition-colors">
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
+                                    @{savedProfile.githubUsername}
+                                </a>
+                            )}
                         </div>
 
-                        {/* Social Links */}
-                        <SocialLinks
-                            farcasterUsername={savedProfile?.farcasterUsername}
-                            baseappUsername={savedProfile?.baseappUsername}
-                            xUsername={savedProfile?.xUsername}
-                            githubUsername={savedProfile?.githubUsername}
-                        />
+                        {/* Scores Row */}
+                        <div className="flex gap-3">
+                            <div className="flex-1 p-3 rounded-lg bg-base-gray-800/50 border border-base-gray-700/30 text-center">
+                                <p className="text-lg font-bold text-purple-400">85</p>
+                                <p className="text-[10px] text-base-gray-500">Neynar</p>
+                            </div>
+                            <div className="flex-1 p-3 rounded-lg bg-base-gray-800/50 border border-base-gray-700/30 text-center">
+                                <p className="text-lg font-bold text-blue-400">72</p>
+                                <p className="text-[10px] text-base-gray-500">Builder</p>
+                            </div>
+                            <div className="flex-1 p-3 rounded-lg bg-base-gray-800/50 border border-base-gray-700/30 text-center">
+                                <p className="text-lg font-bold text-pink-400">45</p>
+                                <p className="text-[10px] text-base-gray-500">Creator</p>
+                            </div>
+                            <div className="flex-1 p-3 rounded-lg bg-base-gray-800/50 border border-base-gray-700/30 text-center">
+                                <p className="text-lg font-bold text-green-400">{vouches.filter(v => v.positive).length}</p>
+                                <p className="text-[10px] text-base-gray-500">Vouches+</p>
+                            </div>
+                        </div>
+                    </div>
 
-                        {/* Share Button */}
-                        {isOwnProfile && (
-                            <ShareButton
-                                profileUrl={`https://baseproof.vercel.app/profile/${profileAddress}`}
-                                username={username}
-                            />
+                    {/* RIGHT: Actions */}
+                    <div className="lg:col-span-2 space-y-4">
+                        {isOwnProfile ? (
+                            <>
+                                {/* Mint Button */}
+                                <button className="w-full py-3 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 text-white font-semibold rounded-xl transition-all text-sm">
+                                    🎴 Mint NFT Card
+                                </button>
+
+                                {/* Share Button */}
+                                <button
+                                    onClick={() => {
+                                        const url = `https://warpcast.com/~/compose?text=Check+out+my+BaseProof+profile!+Trust+Score:+${displayData.trustScore}&embeds[]=${encodeURIComponent(window.location.href)}`;
+                                        window.open(url, '_blank');
+                                    }}
+                                    className="w-full py-3 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-600/50 text-purple-400 font-semibold rounded-xl transition-all text-sm"
+                                >
+                                    📤 Share on Farcaster
+                                </button>
+
+                                {/* Download PNG */}
+                                <button className="w-full py-3 bg-base-gray-800 hover:bg-base-gray-700 border border-base-gray-700 text-white font-medium rounded-xl transition-all text-sm">
+                                    📥 Download Card PNG
+                                </button>
+
+                                {/* Edit Profile */}
+                                <Link href="/profile/setup" className="block w-full py-3 bg-base-gray-800 hover:bg-base-gray-700 border border-base-gray-700 text-white font-medium rounded-xl transition-all text-sm text-center">
+                                    ✏️ Edit Profile
+                                </Link>
+
+                                {/* Vouch Remaining */}
+                                <div className="p-4 rounded-xl bg-base-gray-800/50 border border-base-gray-700/50">
+                                    <p className="text-sm text-base-gray-400 mb-2">Your Vouch Power</p>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-white">Today: <span className="text-green-400">{vouchInfo.dailyRemaining}/5</span></span>
+                                        <span className="text-white">Week: <span className="text-purple-400">{vouchInfo.weeklyRemaining}/35</span></span>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {/* Vouch Buttons for visitors */}
+                                <button
+                                    onClick={() => handleVouch(true)}
+                                    disabled={!vouchInfo.allowed}
+                                    className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                                >
+                                    👍 Vouch Positive
+                                </button>
+                                <button
+                                    onClick={() => handleVouch(false)}
+                                    disabled={!vouchInfo.allowed}
+                                    className="w-full py-3 bg-red-600/20 hover:bg-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed border border-red-600/50 text-red-400 font-semibold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                                >
+                                    👎 Report Issue
+                                </button>
+
+                                {!vouchInfo.allowed && (
+                                    <p className="text-xs text-center text-base-gray-500">
+                                        Vouch limit reached. Resets daily/weekly.
+                                    </p>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
 
-                {/* Vouch Actions (for visitors) */}
-                {!isOwnProfile && (
-                    <div className="flex gap-4 mb-8">
-                        <button className="flex-1 py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                            </svg>
-                            Vouch Positive
-                        </button>
-                        <button className="flex-1 py-3 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 text-red-400 font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
-                            </svg>
-                            Report Issue
-                        </button>
-                    </div>
-                )}
-
                 {/* Vouches Section */}
-                <section>
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold text-white">Vouches & Feedback</h2>
-
-                        {/* Filter Tabs */}
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setVouchFilter('all')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${vouchFilter === 'all' ? 'bg-base-blue text-white' : 'bg-base-gray-800 text-base-gray-400 hover:text-white'
-                                    }`}
-                            >
-                                All ({vouches.length})
-                            </button>
-                            <button
-                                onClick={() => setVouchFilter('positive')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${vouchFilter === 'positive' ? 'bg-green-600 text-white' : 'bg-base-gray-800 text-base-gray-400 hover:text-white'
-                                    }`}
-                            >
-                                ✓ ({positiveCount})
-                            </button>
-                            <button
-                                onClick={() => setVouchFilter('negative')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${vouchFilter === 'negative' ? 'bg-red-600 text-white' : 'bg-base-gray-800 text-base-gray-400 hover:text-white'
-                                    }`}
-                            >
-                                ✗ ({negativeCount})
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Vouch List */}
-                    <VouchList vouches={filteredVouches} pageSize={pageSize} isLoading={isLoading} />
-
-                    {/* Page Size Selector */}
-                    <div className="flex justify-center gap-2 mt-6">
-                        {[5, 10, 25, 50, 100].map((size) => (
-                            <button
-                                key={size}
-                                onClick={() => setPageSize(size)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${pageSize === size ? 'bg-base-blue text-white' : 'bg-base-gray-800 text-base-gray-400 hover:text-white'
-                                    }`}
-                            >
-                                {size}
-                            </button>
-                        ))}
-                    </div>
+                <section className="mt-8">
+                    <h2 className="text-lg font-bold text-white mb-4">Vouches & Feedback</h2>
+                    <VouchList vouches={vouches} pageSize={10} isLoading={isLoading} />
                 </section>
             </main>
         </div>
