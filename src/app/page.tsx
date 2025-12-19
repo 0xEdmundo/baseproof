@@ -377,6 +377,38 @@ export default function Home() {
         }
     };
 
+    // Smart redirect - check if profile exists
+    const [isCheckingProfile, setIsCheckingProfile] = useState(false);
+
+    const handleGetStarted = async () => {
+        setIsCheckingProfile(true);
+        try {
+            // Try to get verified wallet from localStorage
+            const saved = localStorage.getItem('baseproof_current_user');
+            if (saved) {
+                const userData = JSON.parse(saved);
+                if (userData.wallet_address) {
+                    // Check if profile exists in Supabase
+                    const response = await fetch(`/api/profile/${userData.wallet_address}`);
+                    const data = await response.json();
+
+                    if (data.profile && !data.isNewUser) {
+                        // Profile exists - go directly to profile
+                        router.push(`/profile/${userData.wallet_address}`);
+                        return;
+                    }
+                }
+            }
+            // No profile or new user - go to setup
+            router.push('/profile/setup');
+        } catch (error) {
+            console.error('Error checking profile:', error);
+            router.push('/profile/setup');
+        } finally {
+            setIsCheckingProfile(false);
+        }
+    };
+
     const renderVisual = () => {
         switch (screen.visual) {
             case 'welcome': return <WelcomeVisual />;
@@ -446,10 +478,18 @@ export default function Home() {
                 {screen.isFinal && (
                     <div className="w-full space-y-3" onClick={(e) => e.stopPropagation()}>
                         <button
-                            onClick={() => router.push('/profile/setup')}
-                            className="w-full py-4 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 text-white font-semibold rounded-xl transition-all text-base shadow-lg shadow-base-blue/25"
+                            onClick={handleGetStarted}
+                            disabled={isCheckingProfile}
+                            className="w-full py-4 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 disabled:opacity-70 text-white font-semibold rounded-xl transition-all text-base shadow-lg shadow-base-blue/25 flex items-center justify-center gap-2"
                         >
-                            Get Started
+                            {isCheckingProfile ? (
+                                <>
+                                    <span className="animate-spin">⏳</span>
+                                    <span>Checking...</span>
+                                </>
+                            ) : (
+                                <span>Get Started</span>
+                            )}
                         </button>
                         <button
                             onClick={() => router.push('/dashboard')}
@@ -474,10 +514,10 @@ export default function Home() {
                                     setCurrentScreen(i);
                                 }}
                                 className={`h-2 rounded-full transition-all duration-300 ${i === currentScreen
-                                        ? 'w-8 bg-gradient-to-r from-base-blue to-purple-600'
-                                        : i < currentScreen
-                                            ? 'w-2 bg-base-blue/60'
-                                            : 'w-2 bg-base-gray-700 hover:bg-base-gray-600'
+                                    ? 'w-8 bg-gradient-to-r from-base-blue to-purple-600'
+                                    : i < currentScreen
+                                        ? 'w-2 bg-base-blue/60'
+                                        : 'w-2 bg-base-gray-700 hover:bg-base-gray-600'
                                     }`}
                             />
                         ))}

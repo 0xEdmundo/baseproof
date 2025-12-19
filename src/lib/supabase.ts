@@ -180,35 +180,59 @@ export async function searchUsers(query: string): Promise<SearchResult[]> {
     if (normalizedQuery.startsWith('0x') && normalizedQuery.length >= 6) {
         const { data: walletResults } = await supabase
             .from('profiles')
-            .select('wallet_address, basename, farcaster_username, trust_score')
+            .select('wallet_address, username, display_name, basename_url, fid, pfp_url, trust_score')
             .ilike('wallet_address', `${normalizedQuery}%`)
             .limit(5);
 
         if (walletResults) {
-            results.push(...walletResults.map((r: any) => ({ ...r, match_type: 'wallet' as const })));
+            results.push(...walletResults.map((r: any) => ({
+                wallet_address: r.wallet_address,
+                basename: r.basename_url ? r.basename_url.split('/').pop() : null,
+                farcaster_username: r.username,
+                fid: r.fid,
+                pfp_url: r.pfp_url,
+                trust_score: r.trust_score || 100,
+                match_type: 'wallet' as const
+            })));
         }
     }
 
-    // Search by basename
+    // Search by username (Farcaster/display name)
+    const { data: usernameResults } = await supabase
+        .from('profiles')
+        .select('wallet_address, username, display_name, basename_url, fid, pfp_url, trust_score')
+        .or(`username.ilike.%${normalizedQuery}%,display_name.ilike.%${normalizedQuery}%`)
+        .limit(5);
+
+    if (usernameResults) {
+        results.push(...usernameResults.map((r: any) => ({
+            wallet_address: r.wallet_address,
+            basename: r.basename_url ? r.basename_url.split('/').pop() : null,
+            farcaster_username: r.username,
+            fid: r.fid,
+            pfp_url: r.pfp_url,
+            trust_score: r.trust_score || 100,
+            match_type: 'farcaster' as const
+        })));
+    }
+
+    // Search by basename URL (extract basename from URL like https://base.org/name/xyz)
     const { data: basenameResults } = await supabase
         .from('profiles')
-        .select('wallet_address, basename, farcaster_username, trust_score')
-        .ilike('basename', `%${normalizedQuery}%`)
+        .select('wallet_address, username, display_name, basename_url, fid, pfp_url, trust_score')
+        .ilike('basename_url', `%${normalizedQuery}%`)
         .limit(5);
 
     if (basenameResults) {
-        results.push(...basenameResults.map((r: any) => ({ ...r, match_type: 'basename' as const })));
-    }
-
-    // Search by farcaster username
-    const { data: farcasterResults } = await supabase
-        .from('profiles')
-        .select('wallet_address, basename, farcaster_username, trust_score')
-        .ilike('farcaster_username', `%${normalizedQuery}%`)
-        .limit(5);
-
-    if (farcasterResults) {
-        results.push(...farcasterResults.map((r: any) => ({ ...r, match_type: 'farcaster' as const })));
+        results.push(...basenameResults.map((r: any) => ({
+            wallet_address: r.wallet_address,
+            basename: r.basename_url ? r.basename_url.split('/').pop() : null,
+            farcaster_username: r.username,
+            fid: r.fid,
+            pfp_url: r.pfp_url,
+            trust_score: r.trust_score || 100,
+            match_type: 'basename' as const
+        })));
     }
 
     // Deduplicate by wallet address

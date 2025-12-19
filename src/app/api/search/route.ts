@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
                                     farcaster_username: user.username,
                                     fid: user.fid,
                                     pfp_url: user.pfp_url,
-                                    trust_score: Math.round((user.score || user.experimental?.neynar_user_score || 0.5) * 100),
+                                    trust_score: 100, // Base trust score for display (vouch-based, not neynar)
                                     match_type: 'farcaster',
                                     isRegistered
                                 });

@@ -58,14 +58,62 @@ export default function ProfilePage() {
 
     const tier = getTierByScore(displayData.trustScore);
     const vouchInfo = canVouch();
+    const [isVouching, setIsVouching] = useState(false);
+    const [vouchMessage, setVouchMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    const handleVouch = (positive: boolean) => {
+    const handleVouch = async (positive: boolean) => {
         if (!vouchInfo.allowed) {
             alert(`Vouch limit reached! Daily: ${vouchInfo.dailyRemaining}/5, Weekly: ${vouchInfo.weeklyRemaining}/35`);
             return;
         }
-        useVouch();
-        // TODO: Call contract/API
+
+        if (!user?.wallet_address) {
+            alert('Please login to vouch');
+            return;
+        }
+
+        setIsVouching(true);
+        setVouchMessage(null);
+
+        try {
+            const response = await fetch('/api/vouch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sender_address: user.wallet_address,
+                    recipient_address: profile?.wallet_address || profileAddress,
+                    positive,
+                    roles: [],
+                    comment: '',
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to vouch');
+            }
+
+            useVouch(); // Update local vouch counts
+            setVouchMessage({
+                type: 'success',
+                text: `${positive ? 'Vouched!' : 'Reported!'} ${positive ? '+' : '-'}${data.weightedPoints} pts`,
+            });
+
+            // Refresh profile data after 1 second
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+
+        } catch (error: any) {
+            console.error('[Vouch] Error:', error);
+            setVouchMessage({
+                type: 'error',
+                text: error.message || 'Failed to vouch',
+            });
+        } finally {
+            setIsVouching(false);
+        }
     };
 
     return (
@@ -242,22 +290,40 @@ export default function ProfilePage() {
                             </>
                         ) : (
                             <>
+                                {/* Vouch Feedback Message */}
+                                {vouchMessage && (
+                                    <div className={`p-3 rounded-xl text-sm font-medium ${vouchMessage.type === 'success'
+                                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                            : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                        }`}>
+                                        {vouchMessage.text}
+                                    </div>
+                                )}
+
                                 {/* Vouch Buttons for visitors */}
                                 <button
                                     onClick={() => handleVouch(true)}
-                                    disabled={!vouchInfo.allowed}
+                                    disabled={!vouchInfo.allowed || isVouching}
                                     className="group w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all shadow-lg shadow-green-600/25 hover:shadow-green-600/40 hover:scale-[1.02] disabled:hover:scale-100 flex items-center justify-center gap-2.5"
                                 >
-                                    <VouchPositiveIcon className="w-5 h-5 group-hover:-rotate-12 transition-transform" />
-                                    <span>Vouch Positive</span>
+                                    {isVouching ? (
+                                        <span className="animate-spin">⏳</span>
+                                    ) : (
+                                        <VouchPositiveIcon className="w-5 h-5 group-hover:-rotate-12 transition-transform" />
+                                    )}
+                                    <span>{isVouching ? 'Vouching...' : 'Vouch Positive'}</span>
                                 </button>
                                 <button
                                     onClick={() => handleVouch(false)}
-                                    disabled={!vouchInfo.allowed}
+                                    disabled={!vouchInfo.allowed || isVouching}
                                     className="group w-full py-3.5 bg-red-600/20 hover:bg-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed border border-red-500/40 text-red-400 font-semibold rounded-xl transition-all hover:scale-[1.02] disabled:hover:scale-100 flex items-center justify-center gap-2.5"
                                 >
-                                    <VouchNegativeIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                                    <span>Report Issue</span>
+                                    {isVouching ? (
+                                        <span className="animate-spin">⏳</span>
+                                    ) : (
+                                        <VouchNegativeIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                                    )}
+                                    <span>{isVouching ? 'Reporting...' : 'Report Issue'}</span>
                                 </button>
 
                                 {!vouchInfo.allowed && (

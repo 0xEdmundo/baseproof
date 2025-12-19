@@ -68,20 +68,14 @@ export async function GET(
                 console.error('[Profile] Failed to refresh Talent data:', e);
             }
 
-            // 3. Update profile with fresh scores (Always run)
-            // Trust Score is vouch-based, calculated separately from API scores
-            // Formula: Base 100 + (positive * 10) - (negative * 25)
-            const positiveVouches = profile.positive_vouches || 0;
-            const negativeVouches = profile.negative_vouches || 0;
-            const calculatedTrustScore = Math.max(0, Math.min(1000,
-                100 + (positiveVouches * 10) - (negativeVouches * 25)
-            ));
-
+            // 3. Update profile with fresh API scores ONLY
+            // IMPORTANT: trust_score is NEVER updated here - it's vouch-based only
+            // Only neynar_score, builder_score, creator_score are refreshed from APIs
             try {
                 const updatedProfile = await upsertProfile({
                     wallet_address: profile.wallet_address,
                     neynar_score: neynarScore,
-                    trust_score: calculatedTrustScore, // Vouch-based, not Neynar-based
+                    // trust_score is NOT updated here - only vouch operations can change it
                     builder_score: builderScore,
                     creator_score: creatorScore,
                 });
@@ -99,7 +93,7 @@ export async function GET(
             return NextResponse.json({
                 profile: {
                     wallet_address: address.toLowerCase(),
-                    trust_score: 50,
+                    trust_score: 100, // Base vouch score for new users
                     influence_multiplier: 1,
                     total_vouches_received: 0,
                     total_vouches_given: 0,

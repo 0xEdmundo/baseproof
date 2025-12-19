@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { useProfile as useFarcasterAuthProfile } from '@farcaster/auth-kit';
 import { useFarcaster } from '@/lib/farcaster';
 import { getUserByFid } from '@/lib/neynar';
+import { getProfile } from '@/lib/supabase';
 
 interface UserProfile {
     fid: number;
@@ -29,9 +30,11 @@ interface AuthContextType {
     user: UserProfile | null;
     isAuthenticated: boolean;
     isLoading: boolean;
+    hasProfile: boolean | null; // null = not checked, true = exists, false = doesn't exist
     login: (userData: Partial<UserProfile>) => void;
     logout: () => void;
     updateProfile: (data: Partial<UserProfile>) => void;
+    checkProfile: (walletAddress: string) => Promise<boolean>;
     canVouch: () => { allowed: boolean; dailyRemaining: number; weeklyRemaining: number; };
     useVouch: () => boolean;
 }
@@ -44,6 +47,7 @@ const DAILY_VOUCH_LIMIT = 5;
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [hasProfile, setHasProfile] = useState<boolean | null>(null);
     const { isAuthenticated: fcAuthAuthenticated, profile: fcAuthProfile } = useFarcasterAuthProfile();
     const { isInFrame, isLoaded: fcLoaded, user: fcFrameUser } = useFarcaster();
 
@@ -194,14 +198,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
     }, [user, canVouch, updateProfile]);
 
+    // Check if user has a profile in Supabase
+    const checkProfile = useCallback(async (walletAddress: string): Promise<boolean> => {
+        try {
+            const profile = await getProfile(walletAddress);
+            const exists = !!profile;
+            setHasProfile(exists);
+            return exists;
+        } catch (error) {
+            console.error('[Auth] Error checking profile:', error);
+            setHasProfile(false);
+            return false;
+        }
+    }, []);
+
     return (
         <AuthContext.Provider value={{
             user,
             isAuthenticated: !!user,
             isLoading,
+            hasProfile,
             login,
             logout,
             updateProfile,
+            checkProfile,
             canVouch,
             useVouch,
         }}>
