@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFarcaster } from '@/lib/farcaster';
 import { FarcasterLoginButton } from '@/components/auth/FarcasterLoginButton';
 import { useAuth } from '@/providers/AuthProvider';
+import { upsertProfile } from '@/lib/supabase';
+import { getUserByFid } from '@/lib/neynar';
 import Link from 'next/link';
 
 interface ProfileFormData {
@@ -14,6 +16,7 @@ interface ProfileFormData {
     xUsername: string;
     githubUsername: string;
     baseappUsername: string;
+    talentUsername: string;
 }
 
 interface FarcasterUser {
@@ -21,7 +24,7 @@ interface FarcasterUser {
     username: string;
     displayName: string;
     pfpUrl: string;
-    custody_address: string;
+    wallet_address: string;
     bio?: string;
 }
 
@@ -30,16 +33,26 @@ export default function ProfileSetupPage() {
     const { isInFrame, isLoaded, user: frameUser } = useFarcaster();
     const { login, isAuthenticated, user } = useAuth();
 
-    const [step, setStep] = useState<'login' | 'form' | 'complete'>(isAuthenticated ? 'form' : 'login');
-    const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(
-        isAuthenticated && user ? {
-            fid: user.fid,
-            username: user.username,
-            displayName: user.displayName,
-            pfpUrl: user.pfpUrl,
-            custody_address: user.custody_address,
-        } : null
-    );
+    // Determine initial step - if authenticated, go directly to form
+    const initialStep = isAuthenticated ? 'form' : 'login';
+    const [step, setStep] = useState<'login' | 'form' | 'complete'>(initialStep);
+
+    // Set farcaster user from auth state if available
+    const [farcasterUser, setFarcasterUser] = useState<FarcasterUser | null>(null);
+
+    // Initialize farcasterUser from auth when available
+    useEffect(() => {
+        if (isAuthenticated && user && !farcasterUser) {
+            setFarcasterUser({
+                fid: user.fid,
+                username: user.username,
+                displayName: user.displayName,
+                pfpUrl: user.pfpUrl,
+                wallet_address: user.wallet_address,
+            });
+            setStep('form');
+        }
+    }, [isAuthenticated, user, farcasterUser]);
     const [formData, setFormData] = useState<ProfileFormData>({
         displayName: user?.displayName || '',
         username: user?.username || '',
@@ -47,11 +60,35 @@ export default function ProfileSetupPage() {
         xUsername: '',
         githubUsername: '',
         baseappUsername: '',
+        talentUsername: '',
     });
 
     const handleInputChange = (field: keyof ProfileFormData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
+
+    // Load saved profile for edit mode
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            const savedKey = user.wallet_address
+                ? `baseproof_profile_${user.wallet_address}`
+                : `baseproof_profile_fid_${user.fid}`;
+            const saved = localStorage.getItem(savedKey);
+
+            if (saved) {
+                const savedProfile = JSON.parse(saved);
+                setFormData({
+                    displayName: savedProfile.displayName || user.displayName || '',
+                    username: savedProfile.username || user.username || '',
+                    bio: savedProfile.bio || '',
+                    xUsername: savedProfile.xUsername || '',
+                    githubUsername: savedProfile.githubUsername || '',
+                    baseappUsername: savedProfile.baseappUsername || '',
+                    talentUsername: savedProfile.talentUsername || '',
+                });
+            }
+        }
+    }, [isAuthenticated, user]);
 
     const handleFarcasterLoginSuccess = useCallback((fcUser: FarcasterUser) => {
         setFarcasterUser(fcUser);
@@ -60,7 +97,7 @@ export default function ProfileSetupPage() {
             username: fcUser.username,
             displayName: fcUser.displayName,
             pfpUrl: fcUser.pfpUrl,
-            custody_address: fcUser.custody_address,
+            wallet_address: fcUser.wallet_address,
         });
         setFormData(prev => ({
             ...prev,
@@ -74,6 +111,44 @@ export default function ProfileSetupPage() {
     const handleSave = async () => {
         if (!farcasterUser) return;
 
+        // Fetch verified wallet address and scores from Neynar
+        let verifiedWallet = farcasterUser.wallet_address;
+        let neynarScore = 0.5;
+
+        try {
+            const neynarData = await getUserByFid(farcasterUser.fid);
+            if (neynarData) {
+                // Get verified ETH address (first one) or fall back to custody
+                verifiedWallet = neynarData.verifications?.[0] ||
+                    neynarData.verified_addresses?.eth_addresses?.[0] ||
+                    farcasterUser.wallet_address;
+                // Get Neynar score
+                neynarScore = neynarData.score || neynarData.experimental?.neynar_user_score || 0.5;
+                console.log('[Profile] Fetched from Neynar - wallet:', verifiedWallet, 'score:', neynarScore);
+            }
+        } catch (e) {
+            console.error('[Profile] Failed to fetch Neynar data:', e);
+        }
+
+        // Fetch Talent Protocol scores using new API
+        let builderScore: number | undefined;
+        let creatorScore: number | undefined;
+
+        try {
+            const { getTalentScores } = await import('@/lib/talent');
+            const talentScores = await getTalentScores(verifiedWallet, farcasterUser.fid);
+
+            if (talentScores.builder_score !== null) {
+                builderScore = talentScores.builder_score;
+            }
+            if (talentScores.creator_score !== null) {
+                creatorScore = talentScores.creator_score;
+            }
+            console.log('[Profile] Talent scores:', builderScore, creatorScore);
+        } catch (e) {
+            console.error('[Profile] Failed to fetch Talent data:', e);
+        }
+
         const profileData = {
             ...formData,
             farcasterUsername: formData.username,
@@ -81,19 +156,53 @@ export default function ProfileSetupPage() {
             xUrl: formData.xUsername ? `https://x.com/${formData.xUsername.replace('@', '')}` : '',
             githubUrl: formData.githubUsername ? `https://github.com/${formData.githubUsername.replace('@', '')}` : '',
             baseappUrl: formData.baseappUsername ? `https://base.org/name/${formData.baseappUsername.replace('@', '')}` : '',
-            walletAddress: farcasterUser.custody_address,
+            talentUrl: formData.talentUsername ? `https://app.talentprotocol.com/profile/${formData.talentUsername.replace('@', '')}` : '',
+            walletAddress: verifiedWallet,
             fid: farcasterUser.fid,
             pfpUrl: farcasterUser.pfpUrl,
+            neynarScore,
+            builderScore,
+            creatorScore,
         };
 
+        // Save to localStorage
         localStorage.setItem(`baseproof_profile_fid_${farcasterUser.fid}`, JSON.stringify(profileData));
-        if (farcasterUser.custody_address) {
-            localStorage.setItem(`baseproof_profile_${farcasterUser.custody_address}`, JSON.stringify(profileData));
+        if (verifiedWallet) {
+            localStorage.setItem(`baseproof_profile_${verifiedWallet}`, JSON.stringify(profileData));
+        }
+
+        // Save COMPLETE profile to Supabase with all scores
+        try {
+            await upsertProfile({
+                wallet_address: verifiedWallet,
+                fid: farcasterUser.fid,
+                username: formData.username,
+                display_name: formData.displayName,
+                pfp_url: farcasterUser.pfpUrl,
+                bio: formData.bio,
+
+                // Social Links
+                farcaster_url: `https://warpcast.com/${formData.username}`,
+                x_url: formData.xUsername ? `https://x.com/${formData.xUsername.replace('@', '')}` : undefined,
+                github_url: formData.githubUsername ? `https://github.com/${formData.githubUsername.replace('@', '')}` : undefined,
+                basename_url: formData.baseappUsername ? `https://base.org/name/${formData.baseappUsername.replace('@', '')}` : undefined,
+                talent_url: formData.talentUsername ? `https://app.talentprotocol.com/profile/${formData.talentUsername.replace('@', '')}` : undefined,
+
+                // All Scores - Trust Score starts at 100 for new users (vouch-based)
+                trust_score: 100, // Base score, will increase/decrease with vouches
+                neynar_score: neynarScore,
+                builder_score: builderScore,
+                creator_score: creatorScore,
+                influence_multiplier: 1.0,
+            });
+            console.log('[Profile] Saved to Supabase with all scores');
+        } catch (error) {
+            console.error('[Profile] Failed to save to Supabase:', error);
         }
 
         setStep('complete');
         setTimeout(() => {
-            router.push(`/profile/${farcasterUser.custody_address || farcasterUser.fid}`);
+            router.push(`/profile/${verifiedWallet || farcasterUser.fid}`);
         }, 1000);
     };
 
@@ -206,6 +315,17 @@ export default function ProfileSetupPage() {
                                     value={formData.baseappUsername}
                                     onChange={(e) => handleInputChange('baseappUsername', e.target.value)}
                                     placeholder="name.base"
+                                    className="w-full px-3 py-2 bg-base-gray-800 border border-base-gray-700 rounded-lg text-white text-sm"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs text-base-gray-400 mb-1">Talent Protocol</label>
+                                <input
+                                    type="text"
+                                    value={formData.talentUsername}
+                                    onChange={(e) => handleInputChange('talentUsername', e.target.value)}
+                                    placeholder="username"
                                     className="w-full px-3 py-2 bg-base-gray-800 border border-base-gray-700 rounded-lg text-white text-sm"
                                 />
                             </div>

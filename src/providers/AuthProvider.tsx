@@ -3,13 +3,14 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useProfile as useFarcasterAuthProfile } from '@farcaster/auth-kit';
 import { useFarcaster } from '@/lib/farcaster';
+import { getUserByFid } from '@/lib/neynar';
 
 interface UserProfile {
     fid: number;
     username: string;
     displayName: string;
     pfpUrl: string;
-    custody_address: string;
+    wallet_address: string; // Verified Farcaster wallet (NOT custody)
     bio?: string;
     xUsername?: string;
     githubUsername?: string;
@@ -90,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 username: fcAuthProfile.username || '',
                 displayName: fcAuthProfile.displayName || '',
                 pfpUrl: fcAuthProfile.pfpUrl || '',
-                custody_address: fcAuthProfile.custody || '',
+                wallet_address: fcAuthProfile.custody || '', // Will be replaced with verified wallet in login()
                 bio: fcAuthProfile.bio,
             });
         }
@@ -104,19 +105,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 username: fcFrameUser.username || '',
                 displayName: fcFrameUser.displayName || '',
                 pfpUrl: fcFrameUser.pfpUrl || '',
-                custody_address: fcFrameUser.custody_address || '',
+                wallet_address: fcFrameUser.wallet_address || '', // Will be replaced with verified wallet in login()
             });
         }
     }, [fcLoaded, isInFrame, fcFrameUser]);
 
-    const login = useCallback((userData: Partial<UserProfile>) => {
+    const login = useCallback(async (userData: Partial<UserProfile>) => {
         const now = new Date().toISOString();
+
+        // Fetch verified address from Neynar if we have FID
+        let verifiedAddress = userData.wallet_address || '';
+        if (userData.fid) {
+            try {
+                const neynarUser = await getUserByFid(userData.fid);
+                if (neynarUser && neynarUser.verifications && neynarUser.verifications.length > 0) {
+                    // Use the first verified address (primary wallet)
+                    verifiedAddress = neynarUser.verifications[0];
+                    console.log('Using verified address from Neynar:', verifiedAddress);
+                }
+                // Also get bio and other data from Neynar if not provided
+                if (!userData.bio && neynarUser?.profile?.bio?.text) {
+                    userData.bio = neynarUser.profile.bio.text;
+                }
+            } catch (error) {
+                console.warn('Could not fetch Neynar data, using custody address:', error);
+            }
+        }
+
         const newUser: UserProfile = {
             fid: userData.fid || 0,
             username: userData.username || '',
             displayName: userData.displayName || '',
             pfpUrl: userData.pfpUrl || '',
-            custody_address: userData.custody_address || '',
             bio: userData.bio,
             trustScore: userData.trustScore || 100,
             rank: userData.rank || 0,
@@ -127,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             lastVouchReset: userData.lastVouchReset || now,
             lastDailyReset: userData.lastDailyReset || now,
             ...userData,
+            wallet_address: verifiedAddress, // Verified Farcaster wallet from Neynar
         };
 
         setUser(newUser);

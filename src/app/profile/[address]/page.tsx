@@ -4,17 +4,35 @@ import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/providers/AuthProvider';
-import { SearchBar } from '@/components/search/SearchBar';
 import { TierCard, getTierByScore } from '@/components/profile/TierCard';
 import { VouchList } from '@/components/profile/VouchList';
 import { useProfile } from '@/hooks/useProfile';
+import { Header } from '@/components/layout/Header';
+import { MobileNav } from '@/components/layout/MobileNav';
+import {
+    FarcasterIcon,
+    TalentIcon,
+    XIcon,
+    GitHubIcon,
+    BaseIcon,
+    NeynarIcon,
+    BuilderIcon,
+    CreatorIcon,
+    MintIcon,
+    ShareIcon,
+    DownloadIcon,
+    EditIcon,
+    VouchPositiveIcon,
+    VouchNegativeIcon,
+    VouchesIcon
+} from '@/components/icons';
 
 export default function ProfilePage() {
     const params = useParams();
     const profileAddress = params.address as string;
     const { user, isAuthenticated, canVouch, useVouch } = useAuth();
     const isOwnProfile = isAuthenticated && (
-        user?.custody_address?.toLowerCase() === profileAddress?.toLowerCase() ||
+        user?.wallet_address?.toLowerCase() === profileAddress?.toLowerCase() ||
         user?.fid?.toString() === profileAddress
     );
 
@@ -51,25 +69,8 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="min-h-screen bg-base-gray-900 pb-20">
-            {/* Header */}
-            <header className="sticky top-0 z-50 backdrop-blur-xl bg-base-gray-900/90 border-b border-base-gray-800">
-                <div className="max-w-5xl mx-auto px-4 py-3">
-                    <div className="flex items-center justify-between">
-                        <Link href="/dashboard" className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-base-blue to-purple-600 flex items-center justify-center">
-                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                            </div>
-                            <span className="text-base font-bold text-white">BaseProof</span>
-                        </Link>
-                        <div className="flex items-center gap-3">
-                            <SearchBar />
-                        </div>
-                    </div>
-                </div>
-            </header>
+        <div className="min-h-screen bg-base-gray-900 pb-24 md:pb-8">
+            <Header />
 
             <main className="max-w-5xl mx-auto px-4 py-6">
                 {/* Profile Layout: 2 columns */}
@@ -84,68 +85,118 @@ export default function ProfilePage() {
                             pfpUrl={displayData.pfpUrl}
                             topRoles={['Builder', 'Developer']}
                             isOwn={isOwnProfile}
+                            fid={user?.fid || savedProfile?.fid}
+                            positiveVouches={vouches.filter(v => v.positive).length}
+                            negativeVouches={vouches.filter(v => !v.positive).length}
+                            walletAddress={profile?.wallet_address || savedProfile?.walletAddress}
                         />
 
                         {/* Social Links */}
                         <div className="flex flex-wrap gap-2">
                             {savedProfile?.farcasterUsername && (
                                 <a href={savedProfile.farcasterUrl} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-purple-400 text-sm hover:bg-purple-500/20 transition-colors">
-                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M18.24 4H5.76A1.76 1.76 0 0 0 4 5.76v12.48A1.76 1.76 0 0 0 5.76 20h12.48A1.76 1.76 0 0 0 20 18.24V5.76A1.76 1.76 0 0 0 18.24 4Z" /></svg>
-                                    @{savedProfile.farcasterUsername}
+                                    className="flex items-center gap-2 px-3.5 py-2 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 text-sm hover:bg-purple-500/20 transition-all hover:scale-105">
+                                    <FarcasterIcon className="w-4 h-4" />
+                                    <span className="font-medium">@{savedProfile.farcasterUsername}</span>
                                 </a>
                             )}
                             {savedProfile?.baseappUsername && (
                                 <a href={savedProfile.baseappUrl} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-sm hover:bg-blue-500/20 transition-colors">
-                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
-                                    {savedProfile.baseappUsername}
+                                    className="flex items-center gap-2 px-3.5 py-2 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 text-sm hover:bg-blue-500/20 transition-all hover:scale-105">
+                                    <BaseIcon className="w-4 h-4" />
+                                    <span className="font-medium">{savedProfile.baseappUsername}</span>
                                 </a>
                             )}
                             {savedProfile?.xUsername && (
                                 <a href={savedProfile.xUrl} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm hover:bg-white/10 transition-colors">
-                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-                                    @{savedProfile.xUsername}
+                                    className="flex items-center gap-2 px-3.5 py-2 bg-white/5 border border-white/20 rounded-xl text-white text-sm hover:bg-white/10 transition-all hover:scale-105">
+                                    <XIcon className="w-4 h-4" />
+                                    <span className="font-medium">@{savedProfile.xUsername}</span>
                                 </a>
                             )}
                             {savedProfile?.githubUsername && (
                                 <a href={savedProfile.githubUrl} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-500/10 border border-gray-500/30 rounded-lg text-gray-300 text-sm hover:bg-gray-500/20 transition-colors">
-                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
-                                    @{savedProfile.githubUsername}
+                                    className="flex items-center gap-2 px-3.5 py-2 bg-gray-500/10 border border-gray-500/30 rounded-xl text-gray-300 text-sm hover:bg-gray-500/20 transition-all hover:scale-105">
+                                    <GitHubIcon className="w-4 h-4" />
+                                    <span className="font-medium">@{savedProfile.githubUsername}</span>
+                                </a>
+                            )}
+                            {savedProfile?.talentUsername && (
+                                <a href={savedProfile.talentUrl} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-3.5 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm hover:bg-emerald-500/20 transition-all hover:scale-105">
+                                    <TalentIcon className="w-4 h-4" />
+                                    <span className="font-medium">@{savedProfile.talentUsername}</span>
                                 </a>
                             )}
                         </div>
 
-                        {/* Scores Row */}
-                        <div className="flex gap-3">
-                            <div className="flex-1 p-3 rounded-lg bg-base-gray-800/50 border border-base-gray-700/30 text-center">
-                                <p className="text-lg font-bold text-purple-400">85</p>
-                                <p className="text-[10px] text-base-gray-500">Neynar</p>
+                        {/* Premium Score Cards */}
+                        <div className="grid grid-cols-4 gap-3">
+                            {/* Neynar Score */}
+                            <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-violet-600/5 border border-purple-500/20 hover:border-purple-500/40 transition-all hover:scale-[1.02]">
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="relative">
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/20 mb-2 mx-auto">
+                                        <NeynarIcon className="w-4 h-4 text-purple-400" />
+                                    </div>
+                                    <p className="text-2xl font-bold text-purple-400 text-center">
+                                        {profile?.neynar_score ? Math.round(profile.neynar_score * 100) : savedProfile?.neynarScore ? Math.round(savedProfile.neynarScore * 100) : '--'}
+                                    </p>
+                                    <p className="text-[11px] text-purple-300/60 text-center mt-1 font-medium">Neynar</p>
+                                </div>
                             </div>
-                            <div className="flex-1 p-3 rounded-lg bg-base-gray-800/50 border border-base-gray-700/30 text-center">
-                                <p className="text-lg font-bold text-blue-400">72</p>
-                                <p className="text-[10px] text-base-gray-500">Builder</p>
+
+                            {/* Builder Score */}
+                            <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-600/5 border border-blue-500/20 hover:border-blue-500/40 transition-all hover:scale-[1.02]">
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="relative">
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/20 mb-2 mx-auto">
+                                        <BuilderIcon className="w-4 h-4 text-blue-400" />
+                                    </div>
+                                    <p className="text-2xl font-bold text-blue-400 text-center">
+                                        {profile?.builder_score ?? savedProfile?.builderScore ?? '--'}
+                                    </p>
+                                    <p className="text-[11px] text-blue-300/60 text-center mt-1 font-medium">Builder</p>
+                                </div>
                             </div>
-                            <div className="flex-1 p-3 rounded-lg bg-base-gray-800/50 border border-base-gray-700/30 text-center">
-                                <p className="text-lg font-bold text-pink-400">45</p>
-                                <p className="text-[10px] text-base-gray-500">Creator</p>
+
+                            {/* Creator Score */}
+                            <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-pink-500/10 to-rose-600/5 border border-pink-500/20 hover:border-pink-500/40 transition-all hover:scale-[1.02]">
+                                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="relative">
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-pink-500/20 mb-2 mx-auto">
+                                        <CreatorIcon className="w-4 h-4 text-pink-400" />
+                                    </div>
+                                    <p className="text-2xl font-bold text-pink-400 text-center">
+                                        {profile?.creator_score ?? savedProfile?.creatorScore ?? '--'}
+                                    </p>
+                                    <p className="text-[11px] text-pink-300/60 text-center mt-1 font-medium">Creator</p>
+                                </div>
                             </div>
-                            <div className="flex-1 p-3 rounded-lg bg-base-gray-800/50 border border-base-gray-700/30 text-center">
-                                <p className="text-lg font-bold text-green-400">{vouches.filter(v => v.positive).length}</p>
-                                <p className="text-[10px] text-base-gray-500">Vouches+</p>
+
+                            {/* Positive Vouches */}
+                            <div className="group relative p-4 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-600/5 border border-green-500/20 hover:border-green-500/40 transition-all hover:scale-[1.02]">
+                                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="relative">
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-500/20 mb-2 mx-auto">
+                                        <VouchesIcon className="w-4 h-4 text-green-400" />
+                                    </div>
+                                    <p className="text-2xl font-bold text-green-400 text-center">{vouches.filter(v => v.positive).length}</p>
+                                    <p className="text-[11px] text-green-300/60 text-center mt-1 font-medium">Vouches+</p>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* RIGHT: Actions */}
-                    <div className="lg:col-span-2 space-y-4">
+                    <div className="lg:col-span-2 space-y-3">
                         {isOwnProfile ? (
                             <>
                                 {/* Mint Button */}
-                                <button className="w-full py-3 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 text-white font-semibold rounded-xl transition-all text-sm">
-                                    🎴 Mint NFT Card
+                                {/* Mint Button */}
+                                <button className="group w-full py-3.5 bg-gradient-to-r from-base-blue to-purple-600 hover:from-base-blue-light hover:to-purple-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-base-blue/25 hover:shadow-base-blue/40 hover:scale-[1.02] flex items-center justify-center gap-2.5">
+                                    <MintIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                                    <span>Mint NFT Card</span>
                                 </button>
 
                                 {/* Share Button */}
@@ -154,27 +205,38 @@ export default function ProfilePage() {
                                         const url = `https://warpcast.com/~/compose?text=Check+out+my+BaseProof+profile!+Trust+Score:+${displayData.trustScore}&embeds[]=${encodeURIComponent(window.location.href)}`;
                                         window.open(url, '_blank');
                                     }}
-                                    className="w-full py-3 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-600/50 text-purple-400 font-semibold rounded-xl transition-all text-sm"
+                                    className="group w-full py-3.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-400 font-semibold rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5"
                                 >
-                                    📤 Share on Farcaster
+                                    <ShareIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                                    <span>Share on Farcaster</span>
                                 </button>
 
                                 {/* Download PNG */}
-                                <button className="w-full py-3 bg-base-gray-800 hover:bg-base-gray-700 border border-base-gray-700 text-white font-medium rounded-xl transition-all text-sm">
-                                    📥 Download Card PNG
+                                <button className="group w-full py-3.5 bg-base-gray-800 hover:bg-base-gray-700 border border-base-gray-600 text-white font-medium rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5">
+                                    <DownloadIcon className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
+                                    <span>Download Card PNG</span>
                                 </button>
 
                                 {/* Edit Profile */}
-                                <Link href="/profile/setup" className="block w-full py-3 bg-base-gray-800 hover:bg-base-gray-700 border border-base-gray-700 text-white font-medium rounded-xl transition-all text-sm text-center">
-                                    ✏️ Edit Profile
+                                <Link href="/profile/edit" className="group w-full py-3.5 bg-base-gray-800 hover:bg-base-gray-700 border border-base-gray-600 text-white font-medium rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5">
+                                    <EditIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                                    <span>Edit Profile</span>
                                 </Link>
 
                                 {/* Vouch Remaining */}
-                                <div className="p-4 rounded-xl bg-base-gray-800/50 border border-base-gray-700/50">
-                                    <p className="text-sm text-base-gray-400 mb-2">Your Vouch Power</p>
+                                <div className="p-4 rounded-xl bg-gradient-to-br from-base-gray-800/80 to-base-gray-800/40 border border-base-gray-700/50 backdrop-blur-sm">
+                                    <p className="text-sm text-base-gray-300 mb-3 font-medium">Your Vouch Power</p>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-white">Today: <span className="text-green-400">{vouchInfo.dailyRemaining}/5</span></span>
-                                        <span className="text-white">Week: <span className="text-purple-400">{vouchInfo.weeklyRemaining}/35</span></span>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                                            <span className="text-base-gray-400">Today:</span>
+                                            <span className="text-green-400 font-bold">{vouchInfo.dailyRemaining}/5</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-purple-400" />
+                                            <span className="text-base-gray-400">Week:</span>
+                                            <span className="text-purple-400 font-bold">{vouchInfo.weeklyRemaining}/35</span>
+                                        </div>
                                     </div>
                                 </div>
                             </>
@@ -184,20 +246,22 @@ export default function ProfilePage() {
                                 <button
                                     onClick={() => handleVouch(true)}
                                     disabled={!vouchInfo.allowed}
-                                    className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                                    className="group w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all shadow-lg shadow-green-600/25 hover:shadow-green-600/40 hover:scale-[1.02] disabled:hover:scale-100 flex items-center justify-center gap-2.5"
                                 >
-                                    👍 Vouch Positive
+                                    <VouchPositiveIcon className="w-5 h-5 group-hover:-rotate-12 transition-transform" />
+                                    <span>Vouch Positive</span>
                                 </button>
                                 <button
                                     onClick={() => handleVouch(false)}
                                     disabled={!vouchInfo.allowed}
-                                    className="w-full py-3 bg-red-600/20 hover:bg-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed border border-red-600/50 text-red-400 font-semibold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                                    className="group w-full py-3.5 bg-red-600/20 hover:bg-red-600/30 disabled:opacity-50 disabled:cursor-not-allowed border border-red-500/40 text-red-400 font-semibold rounded-xl transition-all hover:scale-[1.02] disabled:hover:scale-100 flex items-center justify-center gap-2.5"
                                 >
-                                    👎 Report Issue
+                                    <VouchNegativeIcon className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                                    <span>Report Issue</span>
                                 </button>
 
                                 {!vouchInfo.allowed && (
-                                    <p className="text-xs text-center text-base-gray-500">
+                                    <p className="text-xs text-center text-base-gray-500 bg-base-gray-800/50 rounded-lg py-2 px-3">
                                         Vouch limit reached. Resets daily/weekly.
                                     </p>
                                 )}
@@ -208,10 +272,15 @@ export default function ProfilePage() {
 
                 {/* Vouches Section */}
                 <section className="mt-8">
-                    <h2 className="text-lg font-bold text-white mb-4">Vouches & Feedback</h2>
+                    <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <VouchesIcon className="w-5 h-5 text-green-400" />
+                        Vouches & Feedback
+                    </h2>
                     <VouchList vouches={vouches} pageSize={10} isLoading={isLoading} />
                 </section>
             </main>
+
+            <MobileNav />
         </div>
     );
 }

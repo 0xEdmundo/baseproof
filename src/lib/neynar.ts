@@ -15,8 +15,12 @@ export interface NeynarUser {
     follower_count: number;
     following_count: number;
     verifications: string[];
+    verified_addresses?: {
+        eth_addresses: string[];
+    };
     active_status: string;
     power_badge: boolean;
+    score?: number;
     experimental?: {
         neynar_user_score?: number;
     };
@@ -37,7 +41,7 @@ export async function getUserByFid(fid: number): Promise<NeynarUser | null> {
         const response = await fetch(`${NEYNAR_BASE_URL}/farcaster/user/bulk?fids=${fid}`, {
             headers: {
                 'accept': 'application/json',
-                'api_key': NEYNAR_API_KEY,
+                'x-api-key': NEYNAR_API_KEY,
             },
         });
 
@@ -64,7 +68,7 @@ export async function getUserByUsername(username: string): Promise<NeynarUser | 
         const response = await fetch(`${NEYNAR_BASE_URL}/farcaster/user/by_username?username=${username}`, {
             headers: {
                 'accept': 'application/json',
-                'api_key': NEYNAR_API_KEY,
+                'x-api-key': NEYNAR_API_KEY,
             },
         });
 
@@ -91,7 +95,7 @@ export async function getUserByAddress(address: string): Promise<NeynarUser | nu
         const response = await fetch(`${NEYNAR_BASE_URL}/farcaster/user/bulk-by-address?addresses=${address}`, {
             headers: {
                 'accept': 'application/json',
-                'api_key': NEYNAR_API_KEY,
+                'x-api-key': NEYNAR_API_KEY,
             },
         });
 

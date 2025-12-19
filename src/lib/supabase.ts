@@ -15,33 +15,52 @@ export const isSupabaseConfigured = (): boolean => supabase !== null;
 
 // Database types
 export interface Profile {
-    id: string;
+    id?: string;
     wallet_address: string;
-    basename: string | null;
-    farcaster_username: string | null;
-    farcaster_fid: number | null;
-    trust_score: number;
-    influence_multiplier: number;
-    sbt_token_id: number | null;
-    total_vouches_received: number;
-    total_vouches_given: number;
-    positive_vouches: number;
-    negative_vouches: number;
-    created_at: string;
-    updated_at: string;
+    fid?: number;
+    username?: string;
+    display_name?: string;
+    pfp_url?: string;
+    bio?: string;
+
+    // Social Links
+    farcaster_url?: string;
+    x_url?: string;
+    github_url?: string;
+    basename_url?: string;
+    talent_url?: string;
+
+    // Scores
+    trust_score?: number;
+    neynar_score?: number;
+    builder_score?: number;
+    creator_score?: number;
+    influence_multiplier?: number;
+
+    // Vouches
+    positive_vouches?: number;
+    negative_vouches?: number;
+    total_vouches_received?: number;
+    total_vouches_given?: number;
+
+    // Mint
+    sbt_token_id?: number;
+    last_mint_image_url?: string;
+    last_mint_date?: string;
+
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface VouchRecord {
     id: string;
-    vouch_id: number;
     sender_address: string;
     recipient_address: string;
     positive: boolean;
-    roles: string[];
-    comment: string;
-    weighted_points: number;
-    tx_hash: string;
-    block_number: number;
+    roles?: string[];
+    comment?: string;
+    weighted_points?: number;
+    tx_hash?: string;
     created_at: string;
 }
 
@@ -49,8 +68,11 @@ export interface SearchResult {
     wallet_address: string;
     basename: string | null;
     farcaster_username: string | null;
+    fid?: number;
+    pfp_url?: string;
     trust_score: number;
     match_type: 'wallet' | 'basename' | 'farcaster';
+    isRegistered?: boolean; // True if user exists in our database
 }
 
 // Profile functions

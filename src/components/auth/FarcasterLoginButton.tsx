@@ -8,7 +8,7 @@ interface FarcasterUser {
     username: string;
     displayName: string;
     pfpUrl: string;
-    custody_address: string;
+    wallet_address: string;
     bio?: string;
 }
 
@@ -27,7 +27,7 @@ export function FarcasterLoginButton({ onSuccess, onError }: FarcasterLoginButto
                 username: res.username || '',
                 displayName: res.displayName || '',
                 pfpUrl: res.pfpUrl || '',
-                custody_address: res.custody || '',
+                wallet_address: res.custody || '',
                 bio: res.bio,
             };
             onSuccess?.(user);
